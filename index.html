@@ -2,17 +2,23 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#2b1f4a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Chavan">
 <title>Chavan</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>
 :root{
-  /* Layout : appli mobile une colonne. Carte "aujourd'hui" en haut, contenu par urgence, onglets fixes en bas. */
+  /* Layout : appli mobile. En-tête compact, une seule liste par onglet, pièces repliables, fenêtres avec boutons toujours visibles. */
   --bg:#f5f2fb;
   --surface:#ffffff;
+  --sunken:#f3f0fa;
   --ink:#221a35;
   --muted:#6c6382;
   --line:#e7e1f2;
@@ -20,326 +26,308 @@
   --accent-ink:#ffffff;
   --accent-soft:#eee8fd;
   --hero:#2b1f4a;
-  --hero-ink:#ffffff;
   --sun:#ffd166;
   --late:#d23f3f; --late-soft:#fde6e6;
   --soon:#b87100; --soon-soft:#fff0d3;
   --ok:#2a8d60; --ok-soft:#ddf3e8;
-  --shadow:0 1px 2px rgba(43,31,74,.06), 0 6px 18px rgba(43,31,74,.06);
+  --shadow:0 1px 2px rgba(43,31,74,.06), 0 4px 14px rgba(43,31,74,.06);
   --display:"Fredoka", "Avenir Next Rounded", system-ui, sans-serif;
   --body:"Nunito", "Segoe UI", system-ui, sans-serif;
+  --safe-b:env(safe-area-inset-bottom);
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --bg:#141020; --surface:#1f1931; --ink:#efeaf9; --muted:#a9a1bf; --line:#322a4c;
-    --accent:#a88dff; --accent-ink:#170f2b; --accent-soft:#2d2452; --hero:#2e2357; --hero-ink:#ffffff;
+    --bg:#141020; --surface:#1f1931; --sunken:#191428; --ink:#efeaf9; --muted:#a9a1bf; --line:#322a4c;
+    --accent:#a88dff; --accent-ink:#170f2b; --accent-soft:#2d2452; --hero:#2e2357;
     --late:#ff8b8b; --late-soft:#3f1f27; --soon:#ffc266; --soon-soft:#3b2d18; --ok:#72dca9; --ok-soft:#173629;
     --shadow:0 1px 2px rgba(0,0,0,.3);
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"]{
-  --bg:#141020; --surface:#1f1931; --ink:#efeaf9; --muted:#a9a1bf; --line:#322a4c;
-  --accent:#a88dff; --accent-ink:#170f2b; --accent-soft:#2d2452; --hero:#2e2357; --hero-ink:#ffffff;
+  --bg:#141020; --surface:#1f1931; --sunken:#191428; --ink:#efeaf9; --muted:#a9a1bf; --line:#322a4c;
+  --accent:#a88dff; --accent-ink:#170f2b; --accent-soft:#2d2452; --hero:#2e2357;
   --late:#ff8b8b; --late-soft:#3f1f27; --soon:#ffc266; --soon-soft:#3b2d18; --ok:#72dca9; --ok-soft:#173629;
   --shadow:0 1px 2px rgba(0,0,0,.3);
   color-scheme: dark;
 }
 *{box-sizing:border-box}
-html,body{height:100%;margin:0}
-body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.45;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;min-height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.4;-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
+body.locked{overflow:hidden}
 button,input,select,textarea{font:inherit;color:inherit}
+input,select,textarea{font-size:16px}
 button{cursor:pointer}
 :focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 svg{flex:none}
-.wrap{max-width:640px;margin:0 auto;padding:14px 16px 120px}
+.wrap{max-width:640px;margin:0 auto;padding:calc(10px + env(safe-area-inset-top)) 14px calc(96px + var(--safe-b))}
 
-/* hero */
-.hero{background:var(--hero);color:var(--hero-ink);border-radius:24px;padding:18px 20px 20px;position:relative;overflow:hidden}
-.hero::after{content:"";position:absolute;right:-40px;top:-40px;width:150px;height:150px;border-radius:50%;background:var(--sun);opacity:.9}
-.hero::before{content:"";position:absolute;right:58px;top:70px;width:46px;height:46px;border-radius:50%;background:var(--accent);opacity:.85}
-.hero-top{display:flex;align-items:center;gap:10px;position:relative;z-index:1}
-.brand{font-family:var(--display);font-weight:700;font-size:1.05rem;letter-spacing:.02em}
-.sync{font-size:.74rem;font-weight:700;opacity:.8;display:flex;align-items:center;gap:6px}
+/* header compact */
+.top{background:var(--hero);color:#fff;border-radius:20px;padding:12px 14px 12px 16px;position:relative;overflow:hidden}
+.top::after{content:"";position:absolute;right:-28px;top:-34px;width:96px;height:96px;border-radius:50%;background:var(--sun)}
+.top-row{display:flex;align-items:center;gap:10px;position:relative;z-index:1}
+.brand{font-family:var(--display);font-weight:700;font-size:.95rem;letter-spacing:.03em;opacity:.9}
+.sync{font-size:.72rem;font-weight:700;opacity:.8;display:flex;align-items:center;gap:5px}
 .sync::before{content:"";width:7px;height:7px;border-radius:50%;background:#bbb}
 .sync.on::before{background:#72dca9}
 .sync.warn::before{background:#ffc266}
-.today{font-family:var(--display);font-weight:600;font-size:2rem;line-height:1.05;margin:14px 0 4px;position:relative;z-index:1;text-wrap:balance}
-.today small{display:block;font-family:var(--body);font-weight:700;font-size:.85rem;opacity:.75;margin-bottom:4px;letter-spacing:.02em}
-.hero-stats{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;position:relative;z-index:1}
-.hero-stats span{background:rgba(255,255,255,.13);border-radius:999px;padding:5px 11px;font-size:.85rem;font-weight:700}
-.hero-stats b{font-variant-numeric:tabular-nums}
+.gear{margin-left:auto;border:0;background:rgba(255,255,255,.16);color:#fff;border-radius:10px;width:34px;height:34px;display:grid;place-items:center}
+.gear svg{width:19px;height:19px}
+.today{font-family:var(--display);font-weight:600;font-size:1.45rem;line-height:1.1;margin:6px 0 8px;position:relative;z-index:1}
+.stats{display:flex;gap:6px;flex-wrap:wrap;position:relative;z-index:1}
+.stats span{background:rgba(255,255,255,.14);border-radius:999px;padding:3px 10px;font-size:.8rem;font-weight:700}
+.stats b{font-variant-numeric:tabular-nums}
 
-h2{font-family:var(--display);font-weight:600;font-size:1.15rem;margin:24px 0 10px;display:flex;align-items:center;gap:8px}
-h2 .n{font-family:var(--body);font-size:.78rem;font-weight:800;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:99px;padding:1px 8px}
-h2 .sub{font-family:var(--body);font-weight:600;font-size:.82rem;color:var(--muted)}
-
-/* segmented */
-.seg{display:flex;background:var(--surface);border-radius:14px;padding:5px;gap:4px;margin-top:16px;box-shadow:var(--shadow)}
-.seg button{flex:1;border:0;background:transparent;border-radius:10px;padding:10px 6px;font-weight:800;color:var(--muted)}
+/* toolbar */
+.bar{display:flex;align-items:center;gap:8px;margin:14px 0 10px}
+.seg{display:flex;background:var(--surface);border-radius:12px;padding:4px;gap:4px;box-shadow:var(--shadow);flex:1}
+.seg button{flex:1;border:0;background:transparent;border-radius:9px;padding:8px 6px;font-weight:800;color:var(--muted);font-size:.92rem}
 .seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.icon-btn{border:0;background:var(--surface);box-shadow:var(--shadow);border-radius:12px;height:44px;padding:0 12px;display:inline-flex;align-items:center;gap:6px;font-weight:800;color:var(--accent);white-space:nowrap}
+.icon-btn svg{width:18px;height:18px}
 
-/* rows */
-.list{display:flex;flex-direction:column;gap:8px}
-.row{display:flex;gap:12px;align-items:flex-start;background:var(--surface);border-radius:16px;padding:12px 14px 12px 12px;box-shadow:var(--shadow);position:relative}
-.row::before{content:"";position:absolute;left:0;top:14px;bottom:14px;width:4px;border-radius:0 4px 4px 0;background:transparent}
-.row.late::before{background:var(--late)}
-.row.soon::before{background:var(--soon)}
-.row.ok::before{background:var(--ok)}
-.row-main{flex:1;min-width:0}
-.row-title{all:unset;display:block;font-weight:800;cursor:pointer;overflow-wrap:anywhere;padding-top:2px}
-.row-title:focus-visible{outline:3px solid var(--accent);outline-offset:2px;border-radius:4px}
-.row-sub{font-size:.85rem;color:var(--muted);margin-top:4px;display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center;overflow-wrap:anywhere}
-.pill{display:inline-flex;align-items:center;gap:4px;font-size:.76rem;font-weight:800;border-radius:999px;padding:2px 9px;white-space:nowrap}
+/* rooms (accordéon) */
+.rooms{display:flex;flex-direction:column;gap:8px}
+.room{background:var(--surface);border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
+.room-head{all:unset;box-sizing:border-box;width:100%;display:flex;align-items:center;gap:12px;padding:12px 14px;cursor:pointer}
+.room-head:focus-visible{outline:3px solid var(--accent);outline-offset:-3px;border-radius:16px}
+.tint{width:10px;height:34px;border-radius:6px;flex:none}
+.room-txt{flex:1;min-width:0}
+.room-name{font-family:var(--display);font-weight:600;font-size:1.08rem;display:block;overflow-wrap:anywhere}
+.room-bar{display:block;height:5px;border-radius:9px;background:var(--sunken);margin-top:6px;overflow:hidden}
+.room-bar i{display:block;height:100%;border-radius:9px}
+.count{font-size:.78rem;font-weight:800;border-radius:999px;padding:3px 9px;white-space:nowrap}
+.count.late{background:var(--late-soft);color:var(--late)}
+.count.ok{background:var(--ok-soft);color:var(--ok)}
+.chev{width:18px;height:18px;color:var(--muted);transition:transform .2s}
+.room.open .chev{transform:rotate(90deg)}
+.room-body{padding:0 8px 8px;display:flex;flex-direction:column;gap:6px}
+.room-foot{display:flex;gap:6px;justify-content:space-between;padding:2px 4px 0}
+.mini{border:0;background:none;color:var(--accent);font-weight:800;font-size:.85rem;padding:8px 6px}
+.mini.muted{color:var(--muted)}
+.sub-lbl{font-size:.75rem;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:6px 6px 0}
+.nothing{color:var(--muted);font-weight:700;font-size:.9rem;padding:8px 8px 4px}
+
+/* swipe + épingle */
+.row[data-swipe]{touch-action:pan-y;position:relative;transition:transform .2s ease, background .15s}
+.row.swiping{transition:background .15s}
+.row.swipe-ok{background:var(--ok-soft) !important}
+.row.swipe-ok .check{border-color:var(--ok);color:var(--ok)}
+.room.pinned{box-shadow:0 0 0 2.5px var(--accent), var(--shadow)}
+.pin-lbl{display:flex;align-items:center;gap:6px;font-size:.72rem;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:.06em;padding:10px 14px 0}
+.pin-lbl svg{width:14px;height:14px}
+.mini svg{width:14px;height:14px;vertical-align:-2px;margin-right:3px}
+.tip{display:flex;align-items:center;gap:8px;background:var(--accent-soft);color:var(--accent);border-radius:12px;padding:8px 8px 8px 12px;font-size:.84rem;font-weight:700;margin-bottom:8px}
+.tip span{flex:1}
+.tip button{border:0;background:none;color:inherit;width:30px;height:30px;display:grid;place-items:center}
+.tip svg{width:15px;height:15px}
+
+/* rows (compact) */
+.list{display:flex;flex-direction:column;gap:6px}
+.row{display:flex;align-items:center;gap:10px;background:var(--sunken);border-radius:14px;padding:6px 10px 6px 6px;min-height:52px}
+.card .row,.list.cards .row{background:var(--surface);box-shadow:var(--shadow)}
+.row-main{all:unset;box-sizing:border-box;flex:1;min-width:0;cursor:pointer;padding:4px 0}
+.row-main:focus-visible{outline:3px solid var(--accent);border-radius:6px}
+.row-title{display:block;font-weight:700;overflow-wrap:anywhere;line-height:1.25}
+.row-meta{display:block;font-size:.8rem;color:var(--muted);margin-top:1px}
+.pill{display:inline-flex;align-items:center;gap:4px;font-size:.74rem;font-weight:800;border-radius:999px;padding:3px 8px;white-space:nowrap;flex:none}
 .pill.late{background:var(--late-soft);color:var(--late)}
 .pill.soon{background:var(--soon-soft);color:var(--soon)}
 .pill.ok{background:var(--ok-soft);color:var(--ok)}
-.pill.flex{background:var(--accent-soft);color:var(--accent)}
-.pill.place{background:var(--bg);color:var(--muted)}
-.pill svg{width:13px;height:13px}
-.row-links{display:flex;gap:14px;flex-wrap:wrap;margin-top:4px}
-.link{border:0;background:none;padding:4px 0;color:var(--accent);font-weight:800;font-size:.84rem}
-.link.muted{color:var(--muted)}
-.how{margin:6px 0 0;padding:10px 12px;background:var(--accent-soft);border-radius:12px;font-size:.92rem;white-space:pre-wrap;overflow-wrap:anywhere}
-.check{flex:none;width:44px;height:44px;border-radius:50%;border:2.5px solid var(--line);background:var(--surface);display:grid;place-items:center;color:transparent}
-.check svg{width:22px;height:22px}
+.pill.flex,.pill.tup{background:var(--accent-soft);color:var(--accent)}
+.pill.none{background:var(--surface);color:var(--muted)}
+.pill svg{width:12px;height:12px}
+.check{flex:none;width:38px;height:38px;border-radius:50%;border:2.5px solid var(--line);background:var(--surface);display:grid;place-items:center;color:transparent}
+.check svg{width:19px;height:19px}
+.check.late{border-color:var(--late)}
+.check.soon{border-color:var(--soon)}
 .check:hover,.check:focus-visible{border-color:var(--ok);color:var(--ok)}
-.row.late .check{border-color:var(--late)}
-.row.soon .check{border-color:var(--soon)}
+.check.pop{background:var(--ok);border-color:var(--ok);color:#fff}
+.row.leaving{opacity:.35}
+.row.bought .row-title{text-decoration:line-through;color:var(--muted)}
+.row.bought .check{background:var(--ok);border-color:var(--ok);color:#fff}
 
-/* rooms */
-.rooms{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-top:16px}
-.room{all:unset;cursor:pointer;background:color-mix(in srgb, var(--tint) 16%, var(--surface));border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:10px;box-shadow:var(--shadow)}
-.room:focus-visible{outline:3px solid var(--accent)}
-.room-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.room-name{font-family:var(--display);font-weight:600;font-size:1.1rem;overflow-wrap:anywhere}
-.ring{width:46px;height:46px}
-.ring text{font-family:var(--body);font-weight:800;font-size:11px;fill:var(--ink)}
-.room-meta{font-size:.82rem;color:var(--muted);font-weight:700}
-.room-meta.late{color:var(--late)}
-.back{border:0;background:none;color:var(--accent);font-weight:800;padding:16px 0 0;display:flex;align-items:center;gap:4px}
-.room-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
-.room-head h2{margin:8px 0;font-size:1.5rem}
+h2{font-family:var(--display);font-weight:600;font-size:1.02rem;margin:16px 4px 8px;display:flex;align-items:center;gap:8px}
+h2 .n{font-family:var(--body);font-size:.75rem;font-weight:800;color:var(--muted);background:var(--surface);border-radius:99px;padding:1px 8px}
 
-/* buttons */
-.btn{border:0;background:var(--surface);border-radius:14px;padding:11px 16px;font-weight:800;box-shadow:var(--shadow);display:inline-flex;align-items:center;justify-content:center;gap:6px}
-.btn.primary{background:var(--accent);color:var(--accent-ink)}
-.btn.danger{color:var(--late)}
-.btn.danger.armed{background:var(--late);color:#fff}
-.btn.wide{width:100%;margin-top:14px}
-.btn.ghost{background:transparent;box-shadow:none;color:var(--accent)}
-.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}
-.actions .grow{flex:1}
-
-/* fridge add */
-.add{background:var(--surface);border-radius:22px;padding:16px;display:flex;flex-direction:column;gap:14px;margin-top:16px;box-shadow:var(--shadow)}
-.add input[type=text]{width:100%;border:2px solid var(--line);border-radius:14px;padding:13px 14px;font-size:1.08rem;background:var(--bg)}
+/* frigo */
+.card{background:var(--surface);border-radius:18px;padding:12px;box-shadow:var(--shadow)}
+.add{display:flex;flex-direction:column;gap:10px}
+.add input[type=text]{width:100%;border:2px solid var(--line);border-radius:12px;padding:11px 12px;background:var(--sunken)}
 .add input[type=text]:focus{border-color:var(--accent);outline:none}
-.lbl{font-size:.75rem;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin:0 0 7px;display:block}
-.chips{display:flex;flex-wrap:wrap;gap:6px}
-.chip{border:1.5px solid var(--line);background:var(--surface);border-radius:999px;padding:8px 13px;font-weight:800;font-size:.9rem;display:inline-flex;align-items:center;gap:6px}
-.chip svg{width:16px;height:16px}
+.seg.small{box-shadow:none;background:var(--sunken)}
+.seg.small button{padding:7px 4px;font-size:.86rem;display:flex;align-items:center;justify-content:center;gap:5px}
+.seg.small svg{width:15px;height:15px}
+.add-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.chip{border:1.5px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 12px;font-weight:800;font-size:.86rem;display:inline-flex;align-items:center;gap:6px}
+.chip svg{width:15px;height:15px}
 .chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
-.chip.quick:hover{border-color:var(--accent);color:var(--accent)}
-.chip.cal{background:var(--sun);border-color:var(--sun);color:#3a2a00}
-.chip .c{font-weight:700;opacity:.7;font-variant-numeric:tabular-nums}
-.hint{font-size:.84rem;color:var(--muted);margin:0}
+.btn{border:0;background:var(--sunken);border-radius:12px;padding:11px 14px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px}
+.btn svg{width:17px;height:17px}
+.btn.primary{background:var(--accent);color:var(--accent-ink)}
+.btn.sun{background:var(--sun);color:#3a2a00}
+.btn.danger{color:var(--late);background:var(--late-soft)}
+.btn.danger.armed{background:var(--late);color:#fff}
+.btn.grow{flex:1}
+.btn.wide{width:100%}
+.hint{font-size:.82rem;color:var(--muted);margin:0}
 .hint.flash{color:var(--late);font-weight:800}
-.filters{margin-top:18px}
+.filters{display:flex;gap:6px;overflow-x:auto;padding:12px 2px 2px;scrollbar-width:none}
+.filters::-webkit-scrollbar{display:none}
+.filters .chip{flex:none}
+.chip .c{opacity:.7;font-variant-numeric:tabular-nums}
+.empty{background:var(--surface);border-radius:16px;padding:16px;box-shadow:var(--shadow);color:var(--muted);font-weight:600}
+.empty p{margin:0 0 8px}
+.note{background:var(--soon-soft);border-radius:12px;padding:10px 12px;font-size:.88rem;margin:10px 0 0}
+.fair{display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:.8rem;color:var(--muted);font-weight:700;margin:14px 4px 0}
+.fair b{color:var(--accent)}
+
+/* tabs */
+nav.tabs{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:center;padding:0 12px calc(10px + var(--safe-b));z-index:5;pointer-events:none}
+nav.tabs .in{display:flex;gap:4px;width:100%;max-width:480px;background:var(--surface);border-radius:20px;padding:5px;box-shadow:0 8px 30px rgba(43,31,74,.18);pointer-events:auto}
+nav.tabs button{flex:1;border:0;border-radius:15px;background:transparent;padding:9px 4px;font-weight:800;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:5px;font-size:.9rem;min-width:0}
+nav.tabs button svg{width:19px;height:19px}
+nav.tabs button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.badge{min-width:20px;height:20px;border-radius:99px;background:var(--late);color:#fff;font-size:.7rem;display:inline-grid;place-items:center;padding:0 5px;font-variant-numeric:tabular-nums}
+.badge:empty{display:none}
+.badge.soft{background:var(--accent-soft);color:var(--accent)}
+
+/* sheet : en-tête et boutons fixes, milieu qui défile */
+.scrim{position:fixed;inset:0;background:rgba(20,14,36,.5);z-index:10}
+.scrim[hidden]{display:none}
+.sheet{position:fixed;z-index:11;left:0;right:0;bottom:0;margin:0 auto;max-width:640px;max-height:calc(100dvh - 20px - env(safe-area-inset-top));background:var(--surface);border-radius:24px 24px 0 0;display:flex;flex-direction:column;overflow:hidden}
+@supports not (height:100dvh){ .sheet{max-height:calc(100vh - 60px)} }
+.sheet-form{display:flex;flex-direction:column;min-height:0;flex:1}
+.sheet-head{display:flex;align-items:center;gap:10px;padding:14px 14px 10px 18px;border-bottom:1px solid var(--line);flex:none}
+.sheet-head h3{font-family:var(--display);font-weight:600;font-size:1.25rem;margin:0;flex:1;overflow-wrap:anywhere;line-height:1.2}
+.x{border:0;background:var(--sunken);border-radius:50%;width:36px;height:36px;display:grid;place-items:center;flex:none}
+.x svg{width:18px;height:18px}
+.sheet-body{overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:14px 18px;flex:1;min-height:0}
+.sheet-foot{display:flex;gap:8px;padding:10px 14px calc(12px + var(--safe-b));border-top:1px solid var(--line);flex:none;background:var(--surface)}
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.field > label,.field > .lbl{font-weight:800;font-size:.88rem}
+.field input,.field select,.field textarea{border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--sunken);width:100%}
+.field textarea{min-height:110px;resize:vertical}
+.help{font-size:.8rem;color:var(--muted)}
+.inline{display:flex;gap:8px}
+.inline input{width:84px;text-align:center;flex:none}
+.inline select{flex:1}
+details.more{border-radius:14px;background:var(--sunken);margin-bottom:14px}
+details.more summary{list-style:none;cursor:pointer;padding:12px 14px;font-weight:800;display:flex;align-items:center;gap:8px}
+details.more summary::-webkit-details-marker{display:none}
+details.more summary svg{width:16px;height:16px;transition:transform .2s;color:var(--muted)}
+details.more[open] summary svg{transform:rotate(90deg)}
+details.more .more-in{padding:0 14px 6px}
+details.more .field input,details.more .field textarea,details.more .field select{background:var(--surface)}
+.toggle{display:flex;gap:12px;align-items:flex-start;cursor:pointer;margin-bottom:14px}
+.toggle input{width:22px;height:22px;margin:1px 0 0;accent-color:var(--accent);flex:none}
+.toggle b{display:block}
+.toggle span{font-size:.84rem;color:var(--muted)}
+.info{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:12px}
+.info .txt{color:var(--muted);font-size:.9rem;font-weight:600;width:100%}
+.how{margin:0 0 14px;padding:12px;background:var(--accent-soft);border-radius:14px;white-space:pre-wrap;overflow-wrap:anywhere;font-size:.95rem}
+.how b{display:block;font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--accent);margin-bottom:4px}
+.acts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.acts .btn.primary{grid-column:1 / -1}
+.link{border:0;background:none;color:var(--accent);font-weight:800;padding:6px 0;font-size:.9rem}
 
 /* calendar */
-.cal{user-select:none}
 .cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
 .cal-head b{font-family:var(--display);font-weight:600;font-size:1.1rem;text-transform:capitalize}
-.cal-nav{border:0;background:var(--bg);border-radius:10px;width:40px;height:40px;display:grid;place-items:center}
+.cal-nav{border:0;background:var(--sunken);border-radius:10px;width:40px;height:40px;display:grid;place-items:center}
 .cal-nav svg{width:18px;height:18px}
 .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
 .cal-grid .dow{font-size:.72rem;font-weight:800;color:var(--muted);padding:4px 0}
-.cal-day{border:0;background:transparent;border-radius:12px;aspect-ratio:1;min-height:38px;font-weight:700;font-variant-numeric:tabular-nums}
-.cal-day:hover{background:var(--accent-soft)}
+.cal-day{border:0;background:transparent;border-radius:12px;height:42px;font-weight:700;font-variant-numeric:tabular-nums}
 .cal-day.past{color:var(--muted);opacity:.55}
 .cal-day.today{box-shadow:inset 0 0 0 2px var(--sun)}
 .cal-day.sel{background:var(--accent);color:var(--accent-ink);opacity:1}
 
-/* empty / notes */
-.empty{background:var(--surface);border-radius:18px;padding:18px;box-shadow:var(--shadow)}
-.empty p{margin:0 0 8px}
-.note{background:var(--soon-soft);border-radius:14px;padding:10px 12px;font-size:.9rem;margin:12px 0 0}
-.fair{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:.86rem;color:var(--muted);font-weight:700;margin:14px 0 0}
-.fair span{background:var(--surface);border-radius:999px;padding:5px 11px;box-shadow:var(--shadow);color:var(--ink)}
-.fair b{color:var(--accent);font-variant-numeric:tabular-nums}
-
-/* tabs */
-nav.tabs{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:center;padding:0 16px calc(12px + env(safe-area-inset-bottom));z-index:5;pointer-events:none}
-nav.tabs .in{display:flex;gap:6px;width:100%;max-width:480px;background:var(--surface);border-radius:20px;padding:6px;box-shadow:0 8px 30px rgba(43,31,74,.18);pointer-events:auto}
-nav.tabs button{flex:1;border:0;border-radius:15px;background:transparent;padding:10px 4px;font-weight:800;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:5px;font-size:.92rem;min-width:0}
-nav.tabs button svg{width:20px;height:20px}
-nav.tabs button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
-.badge{min-width:21px;height:21px;border-radius:99px;background:var(--late);color:#fff;font-size:.72rem;display:inline-grid;place-items:center;padding:0 6px;font-variant-numeric:tabular-nums}
-.badge:empty{display:none}
-
-/* sheet */
-.scrim{position:fixed;inset:0;background:rgba(20,14,36,.5);display:flex;align-items:flex-end;justify-content:center;z-index:10}
-.scrim[hidden]{display:none}
-.sheet{background:var(--surface);width:100%;max-width:640px;border-radius:26px 26px 0 0;padding:10px 18px calc(20px + env(safe-area-inset-bottom));max-height:92%;overflow:auto}
-.sheet::before{content:"";display:block;width:40px;height:5px;border-radius:9px;background:var(--line);margin:0 auto 14px}
-.sheet h3{font-family:var(--display);font-weight:600;font-size:1.4rem;margin:0 0 16px;overflow-wrap:anywhere}
-.field{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
-.field > label,.field > .lbl{font-weight:800;font-size:.9rem;text-transform:none;letter-spacing:0;color:var(--ink);margin:0}
-.field input,.field select,.field textarea{border:1.5px solid var(--line);border-radius:12px;padding:11px 12px;background:var(--bg);width:100%}
-.field textarea{min-height:120px;resize:vertical}
-.field .help{font-size:.82rem;color:var(--muted)}
-.inline{display:flex;align-items:center;gap:8px}
-.inline input[type=number]{width:84px;text-align:center}
-.inline select{flex:1}
-.toggle{display:flex;gap:12px;align-items:flex-start;background:var(--bg);border-radius:14px;padding:12px;cursor:pointer}
-.toggle input{width:22px;height:22px;margin:1px 0 0;accent-color:var(--accent);flex:none}
-.toggle b{display:block}
-.toggle span{font-size:.85rem;color:var(--muted)}
-
 /* toast */
-.toast{position:fixed;left:50%;bottom:calc(140px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--hero);color:#fff;border-radius:14px;padding:11px 16px;display:flex;gap:14px;align-items:center;font-weight:700;max-width:calc(100% - 32px);z-index:20;box-shadow:0 8px 30px rgba(0,0,0,.25)}
+.toast{position:fixed;left:50%;bottom:calc(84px + var(--safe-b));transform:translateX(-50%);background:var(--hero);color:#fff;border-radius:14px;padding:10px 12px 10px 16px;display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;font-weight:700;width:max-content;max-width:calc(100% - 28px);z-index:20;box-shadow:0 8px 30px rgba(0,0,0,.25)}
 .toast[hidden]{display:none}
+.toast .t-acts{display:flex;gap:6px;flex-wrap:wrap}
 .toast button{border:0;background:var(--sun);color:#3a2a00;font-weight:800;border-radius:9px;padding:6px 10px;white-space:nowrap}
-.toast .acts{display:flex;gap:6px;flex-wrap:wrap}
-.toast{flex-wrap:wrap}
-
-/* room link in rows */
-.roomlink{all:unset;cursor:pointer;color:var(--accent);font-weight:800}
-.roomlink:focus-visible{outline:2px solid var(--accent);border-radius:4px}
-
-/* satisfying check */
-.check.pop{background:var(--ok);border-color:var(--ok);color:#fff}
-.row.leaving{opacity:.35}
 #fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:30}
 
-/* timer */
-.clock{font-family:var(--display);font-weight:600;font-size:3.6rem;text-align:center;font-variant-numeric:tabular-nums;margin:6px 0 4px;letter-spacing:.02em}
-.clock-sub{text-align:center;color:var(--muted);font-weight:700;font-size:.9rem;margin:0 0 14px}
-.steps{display:flex;flex-direction:column;gap:6px;margin:6px 0 0}
-.step{display:flex;align-items:center;gap:12px;background:var(--bg);border:0;border-radius:14px;padding:12px;text-align:left;font-weight:700;width:100%}
-.step .dot{width:26px;height:26px;border-radius:50%;border:2.5px solid var(--line);display:grid;place-items:center;color:transparent;flex:none}
-.step .dot svg{width:15px;height:15px}
-.step.done{color:var(--muted)}
-.step.done .name{text-decoration:line-through}
-.step.done .dot{background:var(--ok);border-color:var(--ok);color:#fff}
-.step .at{margin-left:auto;font-size:.8rem;font-variant-numeric:tabular-nums;color:var(--muted)}
-.timer-bar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom));z-index:6;border:0;background:var(--sun);color:#3a2a00;font-weight:800;border-radius:999px;padding:9px 16px;box-shadow:0 6px 20px rgba(0,0,0,.18);display:flex;gap:8px;align-items:center;max-width:calc(100% - 32px)}
-.timer-bar span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.timer-bar b{font-variant-numeric:tabular-nums}
-
-/* shop */
-.row.bought .row-title{text-decoration:line-through;color:var(--muted)}
-.row.bought .check{background:var(--ok);border-color:var(--ok);color:#fff}
-.add-inline{display:flex;gap:8px}
-.add-inline input{flex:1;min-width:0}
-.badge.soft{background:var(--accent-soft);color:var(--accent)}
-nav.tabs button[aria-pressed="true"] .badge.soft{background:var(--accent-ink);color:var(--accent)}
-.pill.tup{background:var(--accent-soft);color:var(--accent)}
-.tup-when{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:8px}
-
 /* setup */
-.setup{position:fixed;inset:0;background:var(--bg);z-index:40;overflow:auto;display:flex;justify-content:center;padding:24px 16px calc(24px + env(safe-area-inset-bottom))}
+.setup{position:fixed;inset:0;background:var(--bg);z-index:40;overflow:auto;display:flex;justify-content:center;padding:24px 16px calc(24px + var(--safe-b))}
 .setup-card{width:100%;max-width:460px;margin:auto 0;display:flex;flex-direction:column;gap:14px}
 .setup-hero{background:var(--hero);color:#fff;border-radius:24px;padding:22px 20px;position:relative;overflow:hidden}
 .setup-hero::after{content:"";position:absolute;right:-36px;top:-36px;width:120px;height:120px;border-radius:50%;background:var(--sun)}
-.setup-hero h2{font-family:var(--display);font-weight:600;font-size:1.8rem;margin:8px 0 4px;position:relative;z-index:1}
+.setup-hero h2{font-family:var(--display);font-weight:600;font-size:1.8rem;margin:8px 0 4px;position:relative;z-index:1;display:block}
 .setup-hero p{margin:0;opacity:.85;font-weight:600;position:relative;z-index:1;max-width:30ch}
 .setup-box{background:var(--surface);border-radius:20px;padding:18px;box-shadow:var(--shadow)}
 .setup-box p{margin:0 0 10px}
-.codebox{font-family:var(--display);font-weight:600;font-size:1.35rem;letter-spacing:.06em;text-align:center;background:var(--accent-soft);color:var(--accent);border-radius:14px;padding:14px;margin:6px 0 12px;user-select:all;word-break:break-all}
-.gear{margin-left:auto;border:0;background:rgba(255,255,255,.14);color:#fff;border-radius:10px;width:36px;height:36px;display:grid;place-items:center;position:relative;z-index:2}
-.gear svg{width:20px;height:20px}
+.codebox{font-family:var(--display);font-weight:600;font-size:1.3rem;letter-spacing:.06em;text-align:center;background:var(--accent-soft);color:var(--accent);border-radius:14px;padding:12px;margin:6px 0 12px;user-select:all;word-break:break-all}
 .err{color:var(--late);font-weight:800}
 .stack{display:flex;flex-direction:column;gap:8px}
 [hidden]{display:none !important}
 @media (prefers-reduced-motion: no-preference){
-  .chip,.check,.btn,.cal-day,nav.tabs button,.seg button,.step{transition:background .15s,border-color .15s,color .15s}
+  .chip,.check,.btn,.cal-day,nav.tabs button,.seg button{transition:background .15s,border-color .15s,color .15s}
   .check.pop{animation:pop .4s cubic-bezier(.3,1.6,.5,1)}
   .row.leaving{transition:opacity .3s .2s, transform .3s .2s;transform:scale(.98)}
+  .sheet{animation:up .22s ease-out}
 }
 @keyframes pop{0%{transform:scale(1)}45%{transform:scale(1.3)}100%{transform:scale(1)}}
+@keyframes up{from{transform:translateY(30px);opacity:.6}to{transform:none;opacity:1}}
 </style>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 </head>
 <body>
 <div class="wrap">
-  <header class="hero">
-    <div class="hero-top"><span class="brand">Chavan</span><span class="sync" id="sync">Connexion…</span><button type="button" class="gear" data-act="settings" aria-label="Réglages"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button></div>
+  <header class="top">
+    <div class="top-row"><span class="brand">Chavan</span><span class="sync" id="sync">Connexion…</span>
+      <button type="button" class="gear" data-act="settings" aria-label="Réglages"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+    </div>
     <div class="today" id="today"></div>
-    <div class="hero-stats" id="hero-stats"></div>
+    <div class="stats" id="stats"></div>
   </header>
 
-  <div id="nodb" hidden class="empty" style="margin-top:16px">
-    <p><b>La synchronisation n'est pas disponible ici.</b></p>
-    <p class="hint">Vérifie ta connexion internet, puis recharge la page.</p>
-  </div>
+  <div id="nodb" hidden class="note">Pas de connexion pour l'instant. Vérifie internet, puis recharge la page.</div>
   <div id="ro" hidden class="note">Tu peux voir les listes mais pas les modifier. Vérifie le code de la maison dans les réglages (roue en haut).</div>
 
-  <!-- MÉNAGE -->
   <section id="tab-menage">
-    <div class="seg" role="group" aria-label="Vue">
-      <button type="button" data-act="mview" data-v="todo" aria-pressed="true">Tout ce qui est à faire</button>
-      <button type="button" data-act="mview" data-v="rooms" aria-pressed="false">Par pièce</button>
+    <div class="bar">
+      <div class="seg" role="group" aria-label="Afficher">
+        <button type="button" data-act="mview" data-v="todo" aria-pressed="true">À faire</button>
+        <button type="button" data-act="mview" data-v="all" aria-pressed="false">Tout</button>
+      </div>
+      <button type="button" class="icon-btn" data-act="new-task" aria-label="Ajouter une tâche" id="add-task-btn"></button>
     </div>
     <div id="menage-body"></div>
   </section>
 
-  <!-- FRIGO -->
   <section id="tab-frigo" hidden>
-    <form class="add" id="add-food" autocomplete="off">
-      <div>
-        <label class="lbl" for="food-name">Qu'est-ce que tu ranges ?</label>
-        <input type="text" id="food-name" placeholder="yaourts, jambon, salade…" enterkeyhint="done">
+    <form class="card add" id="add-food" autocomplete="off" style="margin-top:14px">
+      <input type="text" id="food-name" placeholder="Qu'est-ce que tu ranges ?" enterkeyhint="done" aria-label="Qu'est-ce que tu ranges ?">
+      <div class="seg small" role="group" aria-label="Où">
+        <button type="button" data-act="place" data-v="frigo" aria-pressed="true"></button>
+        <button type="button" data-act="place" data-v="congel" aria-pressed="false"></button>
+        <button type="button" data-act="place" data-v="placard" aria-pressed="false"></button>
       </div>
-      <div>
-        <span class="lbl">Où</span>
-        <div class="chips">
-          <button type="button" class="chip" data-act="place" data-v="frigo" aria-pressed="true"></button>
-          <button type="button" class="chip" data-act="place" data-v="congel" aria-pressed="false"></button>
-          <button type="button" class="chip" data-act="place" data-v="placard" aria-pressed="false"></button>
-        </div>
-        <div class="chips" style="margin-top:8px">
-          <button type="button" class="chip" data-act="tup" id="tup-btn" aria-pressed="false"></button>
-        </div>
-        <div class="tup-when" id="tup-when" hidden>
-          <span class="hint">Mis au frigo :</span>
-          <button type="button" class="chip" data-act="tupday" data-v="0" aria-pressed="true">aujourd'hui</button>
+      <div class="add-row">
+        <button type="button" class="chip" data-act="tup" id="tup-btn" aria-pressed="false"></button>
+        <span id="tup-when" class="add-row" hidden>
+          <button type="button" class="chip" data-act="tupday" data-v="0" aria-pressed="true">auj.</button>
           <button type="button" class="chip" data-act="tupday" data-v="1" aria-pressed="false">hier</button>
           <button type="button" class="chip" data-act="tupday" data-v="2" aria-pressed="false">avant-hier</button>
-        </div>
+        </span>
       </div>
-      <div>
-        <span class="lbl" id="exp-lbl">Périme… (touche pour ranger)</span>
-        <div class="chips">
-          <button type="button" class="chip cal" data-act="open-cal"></button>
-          <button type="button" class="chip quick" data-act="quick" data-d="1">demain</button>
-          <button type="button" class="chip quick" data-act="quick" data-d="3">+3 jours</button>
-          <button type="button" class="chip quick" data-act="quick" data-d="5">+5 jours</button>
-          <button type="button" class="chip quick" data-act="quick" data-d="7">+1 semaine</button>
-          <button type="button" class="chip quick" data-act="quick" data-d="14">+2 semaines</button>
-          <button type="button" class="chip quick" data-act="quick" data-m="1">+1 mois</button>
-          <button type="button" class="chip quick" data-act="quick" data-m="3">+3 mois</button>
-          <button type="button" class="chip quick" data-act="quick" data-m="6">+6 mois</button>
-          <button type="button" class="chip quick" data-act="quick" data-m="12">+1 an</button>
-          <button type="button" class="chip quick" data-act="quick" data-none="1">pas de date</button>
-        </div>
+      <div class="add-row">
+        <button type="button" class="btn grow" data-act="quick-tomorrow" id="tomorrow-btn">Périme demain</button>
+        <button type="button" class="btn sun grow" data-act="open-cal" id="cal-btn"></button>
       </div>
-      <p class="hint" id="add-hint">Astuce : sépare par des virgules pour ranger plusieurs choses avec la même date.</p>
+      <p class="hint" id="add-hint">Plusieurs choses avec la même date ? Sépare-les par des virgules.</p>
     </form>
-    <div class="filters chips" id="food-filters"></div>
+    <div class="filters" id="food-filters"></div>
     <div id="food-body"></div>
   </section>
 
-  <!-- COURSES -->
   <section id="tab-courses" hidden>
-    <form class="add" id="add-shop" autocomplete="off">
-      <label class="lbl" for="shop-name">On a besoin de…</label>
-      <div class="add-inline">
-        <input type="text" id="shop-name" placeholder="lait, pâtes, éponges…" enterkeyhint="done">
+    <form class="card add" id="add-shop" autocomplete="off" style="margin-top:14px">
+      <div class="add-row" style="flex-wrap:nowrap">
+        <input type="text" id="shop-name" placeholder="On a besoin de…" enterkeyhint="done" aria-label="On a besoin de…" style="flex:1;min-width:0">
         <button type="submit" class="btn primary">Ajouter</button>
       </div>
     </form>
@@ -355,12 +343,11 @@ nav.tabs button[aria-pressed="true"] .badge.soft{background:var(--accent-ink);co
   </div>
 </nav>
 
-<button type="button" class="timer-bar" id="timer-bar" data-act="timer-open" hidden></button>
 <canvas id="fx" aria-hidden="true"></canvas>
+<div class="scrim" id="scrim" hidden></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" hidden></div>
+<div class="toast" id="toast" hidden role="status"><span id="toast-msg"></span><span class="t-acts" id="toast-acts"></span></div>
 <div class="setup" id="setup" hidden><div class="setup-card"><div class="setup-hero"><span class="brand">Chavan</span><h2>Bienvenue !</h2><p>Le ménage, le frigo et les courses, synchronisés à deux.</p></div><div class="setup-box" id="setup-body"></div></div></div>
-<div class="scrim" id="scrim" hidden><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
-<div class="toast" id="toast" hidden role="status"><span id="toast-msg"></span><span class="acts" id="toast-acts"></span></div>
-
 <script>
 /* ---------- icons ---------- */
 const I = {
@@ -368,13 +355,15 @@ const I = {
   frigo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="2.5" width="14" height="19" rx="3"/><path d="M5 9.5h14M8.5 5.5v2M8.5 12.5v3"/></svg>',
   congel: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v20M3.5 7l17 10M20.5 7l-17 10M9 4l3 2.5L15 4M9 20l3-2.5 3 2.5"/></svg>',
   placard: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3h8v3H8z"/><path d="M7 6h10l1 3v10a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V9z"/><path d="M6.5 12h11"/></svg>',
-  tup: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9.5h18"/><path d="M4.5 9.5l1 9a2 2 0 0 0 2 1.8h9a2 2 0 0 0 2-1.8l1-9"/><path d="M5 9.5V7.5a1.5 1.5 0 0 1 1.5-1.5h11A1.5 1.5 0 0 1 19 7.5v2"/><path d="M10 6V4.5h4V6"/></svg>',
+  tup: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9.5h18"/><path d="M4.5 9.5l1 9a2 2 0 0 0 2 1.8h9a2 2 0 0 0 2-1.8l1-9"/><path d="M5 9.5V7.5a1.5 1.5 0 0 1 1.5-1.5h11A1.5 1.5 0 0 1 19 7.5v2"/></svg>',
   cal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>',
   left: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>',
   right: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>',
+  x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
   broom: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 3l-7.5 7.5"/><path d="M10 9.5l4.5 4.5-2 2C10 18.5 6 20.5 3.5 20.5c0-2.5 2-6.5 4.5-9z"/><path d="M6.5 17l2-2"/></svg>',
-  cart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2.5l2.2 11h10.6L20.5 7.5H6.4"/><circle cx="9.5" cy="19.5" r="1.4"/><circle cx="17" cy="19.5" r="1.4"/></svg>',
-  timer: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 9.5v4l2.5 2M10 2.5h4M12 2.5v3.5"/></svg>'
+  pin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6l-1 6 4 3v2H6v-2l4-3z"/><path d="M12 14v7"/></svg>',
+  cart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2.5l2.2 11h10.6L20.5 7.5H6.4"/><circle cx="9.5" cy="19.5" r="1.4"/><circle cx="17" cy="19.5" r="1.4"/></svg>'
 };
 
 /* ---------- helpers ---------- */
@@ -382,6 +371,7 @@ const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const DAY = 86400000;
 const PLACES = {frigo:'Frigo', congel:'Congel', placard:'Garde-manger'};
+const PLACES_SHORT = {frigo:'Frigo', congel:'Congel', placard:'Placard'};
 const TINTS = ['#6a48d7','#e0679a','#2a9d8f','#f4a261','#3a86ff','#8ab17d','#c77dff','#e76f51'];
 const REDUCE = (() => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch(_) { return false; } })();
 function today0(){ const d = new Date(); d.setHours(0,0,0,0); return d.getTime(); }
@@ -399,32 +389,36 @@ function fmtDate(s, long){ return new Date(parseYmd(s)).toLocaleDateString('fr-F
 const pl = (n, a, b) => n > 1 ? b : a;
 function span(days){
   days = Math.abs(days);
+  if (days < 14) return days + ' j';
+  if (days < 60) { const w = Math.round(days/7); return w + ' sem.'; }
+  if (days < 365) { const m = Math.round(days/30.4); return m + ' mois'; }
+  const y = Math.round(days/365); return y + ' ' + pl(y, 'an', 'ans');
+}
+function spanLong(days){
+  days = Math.abs(days);
   if (days < 14) return days + ' ' + pl(days, 'jour', 'jours');
   if (days < 60) { const w = Math.round(days/7); return w + ' ' + pl(w, 'semaine', 'semaines'); }
   if (days < 365) { const m = Math.round(days/30.4); return m + ' mois'; }
   const y = Math.round(days/365); return y + ' ' + pl(y, 'an', 'ans');
 }
-function clock(secs){
-  const h = Math.floor(secs/3600), m = Math.floor(secs%3600/60), s = secs%60;
-  return (h ? h + ':' + String(m).padStart(2,'0') : String(m).padStart(2,'0')) + ':' + String(s).padStart(2,'0');
-}
 function splitNames(v){ return v.split(/[,\n;]/).map(s => s.trim()).filter(Boolean).map(s => s.slice(0, 80)); }
 const CHEERS = ['Bien joué !', 'Ça brille !', 'Et hop !', 'Une de moins !', 'Trop fort !', 'Nickel !', 'Au top !'];
 const cheer = () => CHEERS[Math.floor(Math.random() * CHEERS.length)];
+const store = {
+  get(k, d){ try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch(_) { return d; } },
+  set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(_){} }
+};
 
 /* ---------- state ---------- */
 const S = {
   rooms: [], tasks: [], food: [], shop: [],
   got: {rooms:false, tasks:false, food:false, shop:false},
-  tab: 'menage', mview: 'todo', roomId: null,
-  place: 'frigo', filter: 'all', openHow: new Set(),
-  tup: false, tupDay: 0,
-  myId: null, names: {}, readOnly: false,
-  cal: null, timer: null
+  tab: 'menage', mview: store.get('chavan-mview', 'todo'), openRoom: store.get('chavan-open', null),
+  pin: store.get('chavan-pin', null), swipeTip: store.get('chavan-swipe-tip', true),
+  place: 'frigo', filter: 'all', tup: false, tupDay: 0,
+  myId: null, readOnly: false, cal: null
 };
-let db = null, user = null;
-try { const t = JSON.parse(localStorage.getItem('chavan-timer') || 'null'); if (t && t.taskId) S.timer = t; } catch(_){}
-function saveTimer(){ try { S.timer ? localStorage.setItem('chavan-timer', JSON.stringify(S.timer)) : localStorage.removeItem('chavan-timer'); } catch(_){} }
+let db = null;
 
 /* ---------- chores logic ---------- */
 const UNITS = {d:['jour','jours'], w:['semaine','semaines'], m:['mois','mois'], y:['an','ans']};
@@ -452,69 +446,73 @@ function dueYmd(t){
 }
 function taskDue(t){ const d = dueYmd(t); return d ? daysFromToday(d) : 0; }
 function taskStatus(t, dl){ if (t.flex && dl <= 0) return 'flex'; return dl < 0 ? 'late' : dl === 0 ? 'soon' : 'ok'; }
-function dueLabel(t, dl){
-  if (!t.lastDone) return 'pas encore fait';
+function dueShort(t, dl){
+  if (!t.lastDone) return 'à faire';
   if (t.flex && dl <= 0) return 'si besoin';
-  if (dl < 0) return 'en retard de ' + span(dl);
+  if (dl < 0) return 'retard ' + span(dl);
   if (dl === 0) return "aujourd'hui";
   if (dl === 1) return 'demain';
   return 'dans ' + span(dl);
 }
+function dueLong(t, dl){
+  if (!t.lastDone) return 'pas encore faite';
+  if (t.flex && dl <= 0) return 'si besoin (tâche souple)';
+  if (dl < 0) return 'en retard de ' + spanLong(dl);
+  if (dl === 0) return "à faire aujourd'hui";
+  if (dl === 1) return 'à faire demain';
+  return 'à faire dans ' + spanLong(dl);
+}
 function whoName(id){ if (!id) return ''; if (id === S.myId) return 'toi'; return String(id); }
 function doneLabel(t){
-  if (!t.lastDone) return '';
+  if (!t.lastDone) return 'Jamais faite';
   const d = -daysFromToday(t.lastDone);
-  const when = d <= 0 ? "aujourd'hui" : d === 1 ? 'hier' : 'il y a ' + span(d);
-  if (t.skipped) return 'passée ' + when;
+  const when = d <= 0 ? "aujourd'hui" : d === 1 ? 'hier' : 'il y a ' + spanLong(d);
+  if (t.skipped) return 'Passée ' + when;
   const who = whoName(t.lastBy);
-  return 'faite ' + when + (who ? ' par ' + who : '');
-}
-function avgTime(t){
-  const ts = (t.times || []).map(x => Number(x && x.s) || 0).filter(s => s > 0);
-  if (!ts.length) return '';
-  const avg = ts.reduce((a,b) => a+b, 0) / ts.length;
-  if (avg < 60) return '≈ moins d’1 min';
-  const m = Math.round(avg / 60);
-  return m < 60 ? '≈ ' + m + ' min' : '≈ ' + Math.floor(m/60) + ' h ' + String(m%60).padStart(2,'0');
+  return 'Faite ' + when + (who ? ' par ' + who : '');
 }
 function roomName(id){ const r = S.rooms.find(r => r.id === id); return r ? r.name : 'Sans pièce'; }
 function sortedRooms(){ return [...S.rooms].sort((a,b) => (a.createdAt||0) - (b.createdAt||0) || String(a.name).localeCompare(b.name)); }
-function roomPct(roomId){
-  let ts = S.tasks.filter(t => t.roomId === roomId);
+function roomTasks(id){ return S.tasks.filter(t => t.roomId === id).map(t => ({t, dl: taskDue(t)})).sort((a,b) => a.dl - b.dl || String(a.t.name).localeCompare(b.t.name)); }
+function roomPct(id){
+  let ts = S.tasks.filter(t => t.roomId === id);
   if (!ts.length) return null;
-  const strict = ts.filter(t => !t.flex);
-  if (strict.length) ts = strict;
-  // part des tâches à jour (celles qui ne sont pas encore à faire)
-  const ok = ts.filter(t => t.lastDone && taskDue(t) > 0).length;
-  return Math.round(ok / ts.length * 100);
+  const strict = ts.filter(t => !t.flex); if (strict.length) ts = strict;
+  return Math.round(ts.filter(t => t.lastDone && taskDue(t) > 0).length / ts.length * 100);
 }
-function isDue(t){ return taskDue(t) <= 0; }
+const isDue = t => taskDue(t) <= 0;
 const isBuyTask = t => /^\s*acheter\b/i.test(t.name || '');
 function buyReminders(){ return S.tasks.filter(t => isBuyTask(t) && taskDue(t) <= 3).sort((a,b) => taskDue(a) - taskDue(b)); }
 function counts(){
-  const due = S.tasks.filter(t => !t.flex && isDue(t));
-  const items = S.food.map(f => f.exp ? daysFromToday(f.exp) : null);
-  const urgent = items.filter(d => d !== null && d <= 3);
+  const due = S.tasks.filter(t => !t.flex && isDue(t)).length;
+  const urgent = S.food.filter(f => f.exp && daysFromToday(f.exp) <= 3).length;
   const shop = S.shop.filter(x => !x.done).length + buyReminders().length;
-  return {due: due.length, urgent: urgent.length, shop};
+  return {due, urgent, shop};
 }
 
 /* ---------- food logic ---------- */
-function foodDays(f){ return f.exp ? daysFromToday(f.exp) : null; }
-function foodStatus(d){ return d === null ? 'none' : d < 0 ? 'late' : d <= 3 ? 'soon' : 'ok'; }
-function foodLabel(d, exp){
-  if (d === null) return 'pas de date';
-  if (d === -1) return 'périmé depuis hier';
-  if (d < 0) return 'périmé depuis ' + span(d);
-  if (d === 0) return "périme aujourd'hui";
-  if (d === 1) return 'périme demain';
-  if (d < 14) return 'dans ' + span(d);
-  return 'jusqu’au ' + fmtDate(exp) + ' · ' + span(d);
+const foodDays = f => f.exp ? daysFromToday(f.exp) : null;
+const foodStatus = d => d === null ? 'none' : d < 0 ? 'late' : d <= 3 ? 'soon' : 'ok';
+function foodShort(d, exp){
+  if (d === null) return 'sans date';
+  if (d < 0) return 'périmé';
+  if (d === 0) return "aujourd'hui";
+  if (d === 1) return 'demain';
+  if (d < 14) return 'dans ' + d + ' j';
+  return fmtDate(exp);
+}
+function foodLong(d, exp){
+  if (d === null) return 'Pas de date de péremption';
+  if (d === -1) return 'Périmé depuis hier';
+  if (d < 0) return 'Périmé depuis ' + spanLong(d);
+  if (d === 0) return "Périme aujourd'hui";
+  if (d === 1) return 'Périme demain';
+  return 'Périme le ' + fmtDate(exp, true) + ' (dans ' + spanLong(d) + ')';
 }
 function putLabel(f){
   if (!f.putOn) return '';
   const d = -daysFromToday(f.putOn);
-  return d <= 0 ? "mis aujourd'hui" : d === 1 ? 'mis hier' : 'mis il y a ' + span(d);
+  return d <= 0 ? "mis aujourd'hui" : d === 1 ? 'mis hier' : 'mis il y a ' + spanLong(d);
 }
 
 /* ---------- confetti ---------- */
@@ -555,9 +553,10 @@ function celebrate(btn){
 
 /* ---------- render ---------- */
 function renderStatic(){
-  for (const p of Object.keys(PLACES)){ const b = document.querySelector(`[data-act="place"][data-v="${p}"]`); b.innerHTML = I[p] + PLACES[p]; }
-  document.querySelector('[data-act="open-cal"]').innerHTML = I.cal + 'Calendrier';
+  document.querySelectorAll('[data-act="place"]').forEach(b => b.innerHTML = I[b.dataset.v] + PLACES_SHORT[b.dataset.v]);
+  $('#cal-btn').innerHTML = I.cal + 'Calendrier';
   $('#tup-btn').innerHTML = I.tup + 'Tupperware / reste';
+  $('#add-task-btn').innerHTML = I.plus + 'Tâche';
   $('#tab-btn-menage').innerHTML = I.broom + 'Ménage <span class="badge" id="badge-menage"></span>';
   $('#tab-btn-frigo').innerHTML = I.frigo + 'Frigo <span class="badge" id="badge-frigo"></span>';
   $('#tab-btn-courses').innerHTML = I.cart + 'Courses <span class="badge soft" id="badge-courses"></span>';
@@ -570,197 +569,184 @@ function render(){
   $('#tup-btn').setAttribute('aria-pressed', S.tup);
   $('#tup-when').hidden = !S.tup;
   document.querySelectorAll('[data-act="tupday"]').forEach(b => b.setAttribute('aria-pressed', Number(b.dataset.v) === S.tupDay));
-  $('#exp-lbl').textContent = S.tup ? 'À manger avant… (compté depuis le jour où il a été mis)' : 'Périme… (touche pour ranger)';
-  renderHero(); renderMenage(); renderFood(); renderShop(); renderTimerBar();
+  $('#tomorrow-btn').textContent = S.tup ? 'À manger demain' : 'Périme demain';
+  renderTop(); renderMenage(); renderFood(); renderShop();
 }
-function renderHero(){
+function renderTop(){
   const now = new Date();
-  const wd = now.toLocaleDateString('fr-FR', {weekday:'long'});
-  const dm = now.toLocaleDateString('fr-FR', {day:'numeric', month:'long', year:'numeric'});
-  const h = now.getHours();
-  const hello = h < 5 ? 'Bonne nuit' : h < 12 ? 'Bonjour' : h < 18 ? 'Bon après-midi' : 'Bonsoir';
-  $('#today').innerHTML = `<small>${hello} ! On est le</small>${esc(wd.charAt(0).toUpperCase() + wd.slice(1))} ${esc(dm)}`;
+  const s = now.toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'});
+  $('#today').textContent = s.charAt(0).toUpperCase() + s.slice(1);
   const c = counts();
   $('#badge-menage').textContent = c.due || '';
   $('#badge-frigo').textContent = c.urgent || '';
   $('#badge-courses').textContent = c.shop || '';
-  const loading = !(S.got.rooms && S.got.tasks && S.got.food);
-  $('#hero-stats').innerHTML = loading || !db ? '' :
+  const ready = db && S.got.tasks && S.got.food;
+  $('#stats').innerHTML = !ready ? '' :
     `<span><b>${c.due}</b> ${pl(c.due,'tâche','tâches')} à faire</span><span><b>${c.urgent}</b> à manger vite</span>`;
 }
 
-function taskRow(t, showRoom){
-  const dl = taskDue(t), st = taskStatus(t, dl);
-  const open = S.openHow.has(t.id);
-  const bits = [freqLabel(t), doneLabel(t), avgTime(t)].filter(Boolean).map(esc).join(' · ');
-  const room = showRoom ? `<button type="button" class="roomlink" data-act="goroom" data-id="${esc(t.roomId)}">${esc(roomName(t.roomId))}</button> · ` : '';
-  const links = [`<button type="button" class="link" data-act="timer-start" data-id="${esc(t.id)}">Chrono</button>`];
-  if (t.how) links.push(`<button type="button" class="link" data-act="how" data-id="${esc(t.id)}" aria-expanded="${open}">${open ? 'Masquer la méthode' : 'Notre méthode'}</button>`);
-  else links.push(`<button type="button" class="link muted" data-act="edit-how" data-id="${esc(t.id)}">+ Noter comment faire</button>`);
-  if (dl <= 0 && t.lastDone) links.push(`<button type="button" class="link muted" data-act="skip" data-id="${esc(t.id)}">${t.flex ? 'Pas besoin cette fois' : 'Passer'}</button>`);
-  return `<div class="row ${st === 'flex' ? '' : st}">
-    <button type="button" class="check" data-act="done" data-id="${esc(t.id)}" aria-label="Marquer « ${esc(t.name)} » comme faite">${I.check}</button>
-    <div class="row-main">
-      <button type="button" class="row-title" data-act="edit-task" data-id="${esc(t.id)}">${esc(t.name)}</button>
-      <div class="row-sub"><span class="pill ${st}">${esc(dueLabel(t, dl))}</span><span>${room}${bits}</span></div>
-      <div class="row-links">${links.join('')}</div>
-      ${open && t.how ? `<p class="how">${esc(t.how)}</p>` : ''}
-    </div>
+function taskRow(t, dl){
+  const st = taskStatus(t, dl);
+  return `<div class="row" data-swipe>
+    <button type="button" class="check ${st === 'late' || st === 'soon' ? st : ''}" data-act="done" data-id="${esc(t.id)}" aria-label="« ${esc(t.name)} » : faite">${I.check}</button>
+    <button type="button" class="row-main" data-act="task" data-id="${esc(t.id)}"><span class="row-title">${esc(t.name)}</span></button>
+    <span class="pill ${st}">${esc(dueShort(t, dl))}</span>
   </div>`;
-}
-function fairness(){
-  const from = shiftDays(todayYmd(), -6);
-  const cnt = {};
-  for (const t of S.tasks) for (const h of (t.history || [])) if (h && h.d >= from && h.by) cnt[h.by] = (cnt[h.by] || 0) + 1;
-  const ids = Object.keys(cnt);
-  if (!ids.length) return '';
-  ids.sort((a,b) => (b === S.myId) - (a === S.myId) || cnt[b] - cnt[a]);
-  return `<div class="fair">Ces 7 derniers jours : ${ids.map(id => `<span>${esc(id === S.myId ? 'Toi' : id)} <b>${cnt[id]}</b></span>`).join('')}</div>`;
-}
-function ring(pct, tint){
-  const r = 19, c = 2 * Math.PI * r, p = pct === null ? 0 : pct;
-  const col = pct === null ? 'var(--line)' : pct >= 66 ? 'var(--ok)' : pct >= 33 ? 'var(--soon)' : 'var(--late)';
-  return `<svg class="ring" viewBox="0 0 46 46" aria-hidden="true"><circle cx="23" cy="23" r="${r}" fill="none" stroke="color-mix(in srgb, ${tint} 22%, transparent)" stroke-width="5"/><circle cx="23" cy="23" r="${r}" fill="none" stroke="${col}" stroke-width="5" stroke-linecap="round" stroke-dasharray="${(c*p/100).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 23 23)"/><text x="23" y="27" text-anchor="middle">${pct === null ? '–' : pct + '%'}</text></svg>`;
 }
 function renderMenage(){
   const body = $('#menage-body');
   if (!db){ body.innerHTML = ''; return; }
-  if (!(S.got.rooms && S.got.tasks)){ body.innerHTML = `<p class="hint" style="margin-top:16px">Chargement…</p>`; return; }
+  if (!(S.got.rooms && S.got.tasks)){ body.innerHTML = `<p class="hint" style="padding:8px 4px">Chargement…</p>`; return; }
   if (!S.rooms.length){
-    body.innerHTML = `<div class="empty" style="margin-top:16px">
-      <p><b>Pas encore de pièces.</b></p>
-      <p class="hint">Tu peux partir d'une maison type et tout modifier ensuite, ou créer tes pièces toi-même.</p>
-      <div class="actions"><button type="button" class="btn primary" data-act="seed">Créer une maison type</button><button type="button" class="btn" data-act="new-room">Créer ma propre pièce</button></div>
-    </div>`;
+    body.innerHTML = `<div class="empty"><p>Pas encore de pièces.</p><button type="button" class="btn primary" data-act="new-room">Créer une pièce</button></div>`;
     return;
   }
-  if (S.mview === 'todo'){
-    const all = S.tasks.map(t => ({t, dl: taskDue(t)})).sort((a,b) => a.dl - b.dl || String(a.t.name).localeCompare(b.t.name));
-    const now = all.filter(x => x.dl <= 0 && !x.t.flex);
-    const flex = all.filter(x => x.dl <= 0 && x.t.flex);
-    const next = all.filter(x => x.dl > 0 && x.dl <= 3);
-    let h = fairness();
-    h += `<h2>Maintenant <span class="n">${now.length}</span></h2>`;
-    h += now.length ? `<div class="list">${now.map(x => taskRow(x.t, true)).join('')}</div>` : `<div class="empty"><p>Rien d'urgent. Profite !</p></div>`;
-    if (flex.length) h += `<h2>Si besoin <span class="n">${flex.length}</span><span class="sub">pas grave si ça attend</span></h2><div class="list">${flex.map(x => taskRow(x.t, true)).join('')}</div>`;
-    if (next.length) h += `<h2>Les 3 prochains jours <span class="n">${next.length}</span></h2><div class="list">${next.map(x => taskRow(x.t, true)).join('')}</div>`;
-    h += `<button type="button" class="btn wide" data-act="new-task">+ Ajouter une tâche</button>`;
-    body.innerHTML = h;
-    return;
+  const todo = S.mview === 'todo';
+  const rooms = sortedRooms();
+  if (S.pin && !rooms.some(r => r.id === S.pin)) S.pin = null;
+  let h = '';
+  if (S.swipeTip) h += `<div class="tip"><span>Astuce : glisse une ligne vers la droite pour la cocher.</span><button type="button" data-act="tip-close" aria-label="Fermer l'astuce">${I.x}</button></div>`;
+  h += '<div class="rooms">';
+  const pinned = rooms.find(r => r.id === S.pin);
+  if (pinned) h += roomCard(pinned, rooms.indexOf(pinned), todo, true);
+  rooms.forEach((r, i) => { if (r.id !== S.pin) h += roomCard(r, i, todo, false); });
+  h += '</div>';
+  h += `<div class="room-foot" style="margin-top:6px"><span></span><button type="button" class="mini" data-act="new-room">+ Ajouter une pièce</button></div>`;
+  h += fairness();
+  body.innerHTML = h;
+}
+function roomCard(r, i, todo, isPinned){
+  const tint = TINTS[i % TINTS.length];
+  const all = roomTasks(r.id);
+  const due = all.filter(x => x.dl <= 0 && !x.t.flex);
+  const flex = all.filter(x => x.dl <= 0 && x.t.flex);
+  const pct = roomPct(r.id);
+  const open = isPinned || S.openRoom === r.id;
+  const col = pct === null ? 'var(--line)' : pct >= 66 ? 'var(--ok)' : pct >= 33 ? 'var(--soon)' : 'var(--late)';
+  let h = `<div class="room ${open ? 'open' : ''} ${isPinned ? 'pinned' : ''}">
+    ${isPinned ? `<div class="pin-lbl">${I.pin}On nettoie ici</div>` : ''}
+    <button type="button" class="room-head" data-act="${isPinned ? 'noop' : 'room'}" data-id="${esc(r.id)}" aria-expanded="${open}">
+      <span class="tint" style="background:${tint}"></span>
+      <span class="room-txt"><span class="room-name">${esc(r.name)}</span><span class="room-bar"><i style="width:${pct ?? 0}%;background:${col}"></i></span></span>
+      ${due.length ? `<span class="count late">${due.length} à faire</span>` : `<span class="count ok">à jour</span>`}
+      ${isPinned ? '' : `<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>`}
+    </button>`;
+  if (!open) return h + '</div>';
+  h += '<div class="room-body">';
+  if (todo){
+    h += due.length ? due.map(x => taskRow(x.t, x.dl)).join('') : `<div class="nothing">Rien à faire ici, tout est propre !</div>`;
+    if (flex.length) h += `<div class="sub-lbl">Si besoin</div>` + flex.map(x => taskRow(x.t, x.dl)).join('');
+  } else {
+    h += all.length ? all.map(x => taskRow(x.t, x.dl)).join('') : `<div class="nothing">Aucune tâche dans cette pièce.</div>`;
   }
-  const room = S.roomId && S.rooms.find(r => r.id === S.roomId);
-  if (room){
-    const ts = S.tasks.filter(t => t.roomId === room.id).map(t => ({t, dl: taskDue(t)})).sort((a,b) => a.dl - b.dl || String(a.t.name).localeCompare(b.t.name));
-    body.innerHTML = `<button type="button" class="back" data-act="room" data-id="">${I.left.replace('<svg','<svg width="18" height="18"')}Toutes les pièces</button>
-      <div class="room-head"><h2>${esc(room.name)}</h2><button type="button" class="btn ghost" data-act="edit-room" data-id="${esc(room.id)}">Renommer / supprimer</button></div>
-      ${ts.length ? `<div class="list">${ts.map(x => taskRow(x.t, false)).join('')}</div>` : `<div class="empty"><p>Aucune tâche dans cette pièce.</p></div>`}
-      <button type="button" class="btn wide primary" data-act="new-task" data-room="${esc(room.id)}">+ Ajouter une tâche ici</button>`;
-    return;
-  }
-  S.roomId = null;
-  body.innerHTML = `<div class="rooms">${sortedRooms().map((r, i) => {
-      const tint = TINTS[i % TINTS.length];
-      const pct = roomPct(r.id);
-      const ts = S.tasks.filter(t => t.roomId === r.id);
-      const n = ts.filter(t => !t.flex && isDue(t)).length;
-      return `<button type="button" class="room" style="--tint:${tint}" data-act="room" data-id="${esc(r.id)}">
-        <span class="room-top"><span class="room-name">${esc(r.name)}</span>${ring(pct, tint)}</span>
-        <span class="room-meta ${n ? 'late' : ''}">${n ? n + ' à faire sur ' + ts.filter(t => !t.flex).length : ts.length ? 'Tout est à jour' : 'Aucune tâche'}</span>
-      </button>`;
-    }).join('')}</div>
-    <p class="hint" style="margin-top:10px">Le pourcentage, c'est la part des tâches de la pièce qui sont à jour (les tâches souples ne comptent pas).</p>
-    <button type="button" class="btn wide" data-act="new-room">+ Ajouter une pièce</button>`;
+  const rest = all.length - due.length - flex.length;
+  const pinBtn = isPinned
+    ? `<button type="button" class="mini" data-act="unpin">${I.check}Fini ici</button>`
+    : `<button type="button" class="mini" data-act="pin" data-id="${esc(r.id)}">${I.pin}On nettoie ici</button>`;
+  const left = todo && rest ? `<button type="button" class="mini muted" data-act="mview" data-v="all">Voir les ${rest} autres</button>`
+    : !todo ? `<button type="button" class="mini muted" data-act="edit-room" data-id="${esc(r.id)}">Renommer</button>` : '';
+  h += `<div class="room-foot">${pinBtn}${left}<button type="button" class="mini" data-act="new-task" data-room="${esc(r.id)}">+ Tâche</button></div>`;
+  return h + '</div></div>';
+}
+function fairness(){
+  const from = shiftDays(todayYmd(), -6), cnt = {};
+  for (const t of S.tasks) for (const h of (t.history || [])) if (h && h.d >= from && h.by) cnt[h.by] = (cnt[h.by] || 0) + 1;
+  const ids = Object.keys(cnt);
+  if (!ids.length) return '';
+  ids.sort((a,b) => (b === S.myId) - (a === S.myId) || cnt[b] - cnt[a]);
+  return `<div class="fair">Ces 7 derniers jours : ${ids.map(id => `<span>${esc(id === S.myId ? 'Toi' : id)} <b>${cnt[id]}</b></span>`).join(' · ')}</div>`;
 }
 
 function renderFood(){
-  const items = S.food.map(f => ({f, d: foodDays(f)}));
   $('#add-food').hidden = !db || S.readOnly;
+  const items = S.food.map(f => ({f, d: foodDays(f)}));
   const cnt = p => items.filter(x => p === 'all' || x.f.place === p).length;
   $('#food-filters').innerHTML = !items.length ? '' : ['all','frigo','congel','placard'].map(p =>
-    `<button type="button" class="chip" data-act="filter" data-v="${p}" aria-pressed="${S.filter === p}">${p === 'all' ? 'Tout' : I[p] + PLACES[p]}<span class="c">${cnt(p)}</span></button>`).join('');
+    `<button type="button" class="chip" data-act="filter" data-v="${p}" aria-pressed="${S.filter === p}">${p === 'all' ? 'Tout' : I[p] + PLACES_SHORT[p]} <span class="c">${cnt(p)}</span></button>`).join('');
   const body = $('#food-body');
   if (!db){ body.innerHTML = ''; return; }
-  if (!S.got.food){ body.innerHTML = `<p class="hint" style="margin-top:16px">Chargement…</p>`; return; }
-  if (!items.length){ body.innerHTML = `<div class="empty" style="margin-top:16px"><p>Après les courses : tape le nom, touche une durée ou une date du calendrier, c'est rangé. Le plus urgent remontera toujours en haut.</p></div>`; return; }
+  if (!S.got.food){ body.innerHTML = `<p class="hint" style="padding:8px 4px">Chargement…</p>`; return; }
+  if (!items.length){ body.innerHTML = `<div class="empty" style="margin-top:12px"><p>Rien de rangé pour l'instant. Tape le nom, puis « Périme demain » ou « Calendrier » : c'est rangé.</p></div>`; return; }
   const shown = items.filter(x => S.filter === 'all' || x.f.place === S.filter)
     .sort((a,b) => (a.d === null) - (b.d === null) || (a.d ?? 0) - (b.d ?? 0) || String(a.f.name).localeCompare(b.f.name));
   const groups = [
-    ['Périmé', x => x.d !== null && x.d < 0],
-    ['À manger vite', x => x.d !== null && x.d >= 0 && x.d <= 3],
-    ['Tranquille', x => x.d !== null && x.d > 3],
+    ['À manger vite', x => x.d !== null && x.d <= 3],
+    ['Plus tard', x => x.d !== null && x.d > 3],
     ['Sans date', x => x.d === null]
   ];
   let h = '';
   for (const [label, fn] of groups){
     const g = shown.filter(fn);
     if (!g.length) continue;
-    h += `<h2>${label} <span class="n">${g.length}</span></h2><div class="list">${g.map(({f,d}) => {
+    h += `<h2>${label} <span class="n">${g.length}</span></h2><div class="list cards">${g.map(({f,d}) => {
       const st = foodStatus(d), place = PLACES[f.place] ? f.place : 'frigo';
-      const tup = f.kind === 'tup' ? `<span class="pill tup">${I.tup}${esc(putLabel(f) || 'Tupperware')}</span>` : '';
-      return `<div class="row ${st === 'none' ? '' : st}">
-        <button type="button" class="check" data-act="eat" data-id="${esc(f.id)}" aria-label="« ${esc(f.name)} » est fini (mangé ou jeté)">${I.check}</button>
-        <div class="row-main">
-          <button type="button" class="row-title" data-act="edit-food" data-id="${esc(f.id)}">${esc(f.name)}</button>
-          <div class="row-sub"><span class="pill ${st === 'none' ? 'place' : st}">${esc(foodLabel(d, f.exp))}</span>${tup}${S.filter === 'all' ? `<span class="pill place">${I[place]}${esc(PLACES[place])}</span>` : ''}</div>
-        </div>
+      const meta = [S.filter === 'all' ? PLACES_SHORT[place] : '', f.kind === 'tup' ? putLabel(f) : ''].filter(Boolean).join(' · ');
+      return `<div class="row" data-swipe>
+        <button type="button" class="check ${st === 'late' || st === 'soon' ? st : ''}" data-act="eat" data-id="${esc(f.id)}" aria-label="« ${esc(f.name)} » est fini">${I.check}</button>
+        <button type="button" class="row-main" data-act="edit-food" data-id="${esc(f.id)}"><span class="row-title">${f.kind === 'tup' ? '<span class="pill tup" style="margin-right:6px;padding:2px 6px">' + I.tup + '</span>' : ''}${esc(f.name)}</span>${meta ? `<span class="row-meta">${esc(meta)}</span>` : ''}</button>
+        <span class="pill ${st}">${esc(foodShort(d, f.exp))}</span>
       </div>`;
     }).join('')}</div>`;
   }
-  body.innerHTML = h || `<div class="empty" style="margin-top:16px"><p>Rien ici.</p></div>`;
+  body.innerHTML = h || `<div class="empty" style="margin-top:12px"><p>Rien ici.</p></div>`;
 }
 
 function renderShop(){
   $('#add-shop').hidden = !db || S.readOnly;
   const body = $('#shop-body');
   if (!db){ body.innerHTML = ''; return; }
-  if (!S.got.shop || !S.got.tasks){ body.innerHTML = `<p class="hint" style="margin-top:16px">Chargement…</p>`; return; }
+  if (!S.got.shop || !S.got.tasks){ body.innerHTML = `<p class="hint" style="padding:8px 4px">Chargement…</p>`; return; }
   const todo = S.shop.filter(x => !x.done).sort((a,b) => (a.addedAt||0) - (b.addedAt||0));
   const bought = S.shop.filter(x => x.done).sort((a,b) => (b.doneAt||0) - (a.doneAt||0));
   const rem = buyReminders();
   let h = '';
-  if (rem.length){
-    h += `<h2>Rappels du ménage <span class="n">${rem.length}</span></h2><div class="list">${rem.map(t => {
-      const dl = taskDue(t), st = taskStatus(t, dl);
-      return `<div class="row ${st === 'flex' ? '' : st}">
-        <button type="button" class="check" data-act="done" data-id="${esc(t.id)}" aria-label="« ${esc(t.name)} » : acheté">${I.check}</button>
-        <div class="row-main"><button type="button" class="row-title" data-act="edit-task" data-id="${esc(t.id)}">${esc(t.name)}</button>
-        <div class="row-sub"><span class="pill ${st}">${esc(dueLabel(t, dl))}</span><span>${esc(roomName(t.roomId))}</span></div></div>
-      </div>`;
-    }).join('')}</div>`;
-  }
+  if (rem.length) h += `<h2>Rappels <span class="n">${rem.length}</span></h2><div class="list cards">${rem.map(t => taskRow(t, taskDue(t))).join('')}</div>`;
   h += `<h2>À acheter <span class="n">${todo.length}</span></h2>`;
-  h += todo.length ? `<div class="list">${todo.map(shopRow).join('')}</div>` : `<div class="empty"><p>La liste est vide. Quand tu finis un truc du frigo, le bouton « + Courses » l'ajoute ici.</p></div>`;
-  if (bought.length) h += `<h2>Dans le panier <span class="n">${bought.length}</span></h2><div class="list">${bought.map(shopRow).join('')}</div>
-    <button type="button" class="btn wide" data-act="shop-clear">Vider le panier</button>`;
+  h += todo.length ? `<div class="list cards">${todo.map(shopRow).join('')}</div>` : `<div class="empty"><p>La liste est vide.</p></div>`;
+  if (bought.length) h += `<h2>Dans le panier <span class="n">${bought.length}</span></h2><div class="list cards">${bought.map(shopRow).join('')}</div>
+    <button type="button" class="btn wide" style="margin-top:10px" data-act="shop-clear">Vider le panier</button>`;
   body.innerHTML = h;
 }
 function shopRow(x){
-  return `<div class="row ${x.done ? 'bought' : ''}">
+  return `<div class="row ${x.done ? 'bought' : ''}" data-swipe>
     <button type="button" class="check" data-act="shop-toggle" data-id="${esc(x.id)}" aria-label="${x.done ? 'Remettre' : 'Cocher'} « ${esc(x.name)} »">${I.check}</button>
-    <div class="row-main"><button type="button" class="row-title" data-act="shop-edit" data-id="${esc(x.id)}">${esc(x.name)}</button></div>
+    <button type="button" class="row-main" data-act="shop-edit" data-id="${esc(x.id)}"><span class="row-title">${esc(x.name)}</span></button>
   </div>`;
+}
+
+/* ---------- sheet ---------- */
+let sheetSubmit = null;
+function openSheet({title, body, foot, onSubmit}){
+  sheetSubmit = onSubmit || null;
+  $('#sheet').innerHTML = `<form class="sheet-form" novalidate>
+      <div class="sheet-head"><h3>${title}</h3><button type="button" class="x" data-act="close" aria-label="Fermer">${I.x}</button></div>
+      <div class="sheet-body">${body}</div>
+      ${foot ? `<div class="sheet-foot">${foot}</div>` : ''}
+    </form>`;
+  $('#sheet').hidden = false; $('#scrim').hidden = false;
+  document.body.classList.add('locked');
+}
+function closeSheet(){ $('#sheet').hidden = true; $('#scrim').hidden = true; $('#sheet').innerHTML = ''; S.cal = null; sheetSubmit = null; document.body.classList.remove('locked'); }
+$('#sheet').addEventListener('submit', async e => { e.preventDefault(); if (sheetSubmit) await sheetSubmit(e.target); });
+$('#scrim').addEventListener('click', closeSheet);
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#sheet').hidden) closeSheet(); });
+function armDelete(btn, fn){
+  if (btn.classList.contains('armed')) { fn(); return; }
+  btn.classList.add('armed'); btn.dataset.label = btn.textContent; btn.textContent = 'Sûr ? Touche encore';
+  setTimeout(() => { if (btn.isConnected){ btn.classList.remove('armed'); btn.textContent = btn.dataset.label; } }, 3000);
 }
 
 /* ---------- calendar ---------- */
 function calHTML(){
   const {y, m, sel} = S.cal;
-  const first = new Date(y, m, 1);
-  const start = (first.getDay() + 6) % 7;
-  const n = new Date(y, m + 1, 0).getDate();
-  const t = todayYmd();
-  const title = first.toLocaleDateString('fr-FR', {month:'long', year:'numeric'});
+  const first = new Date(y, m, 1), start = (first.getDay() + 6) % 7, n = new Date(y, m + 1, 0).getDate(), t = todayYmd();
   let cells = ['L','M','M','J','V','S','D'].map(d => `<span class="dow">${d}</span>`).join('');
   for (let i = 0; i < start; i++) cells += '<span></span>';
   for (let d = 1; d <= n; d++){
     const v = ymd(new Date(y, m, d, 12));
-    const cls = ['cal-day', v < t ? 'past' : '', v === t ? 'today' : '', v === sel ? 'sel' : ''].join(' ');
-    cells += `<button type="button" class="${cls}" data-act="cal-day" data-v="${v}" aria-label="${esc(fmtDate(v, true))}">${d}</button>`;
+    cells += `<button type="button" class="cal-day ${v < t ? 'past' : ''} ${v === t ? 'today' : ''} ${v === sel ? 'sel' : ''}" data-act="cal-day" data-v="${v}" aria-label="${esc(fmtDate(v, true))}">${d}</button>`;
   }
-  return `<div class="cal"><div class="cal-head">
-      <button type="button" class="cal-nav" data-act="cal-move" data-v="-1" aria-label="Mois précédent">${I.left}</button>
-      <b>${esc(title)}</b>
-      <button type="button" class="cal-nav" data-act="cal-move" data-v="1" aria-label="Mois suivant">${I.right}</button>
-    </div><div class="cal-grid">${cells}</div></div>`;
+  return `<div class="cal-head"><button type="button" class="cal-nav" data-act="cal-move" data-v="-1" aria-label="Mois précédent">${I.left}</button><b>${esc(first.toLocaleDateString('fr-FR', {month:'long', year:'numeric'}))}</b><button type="button" class="cal-nav" data-act="cal-move" data-v="1" aria-label="Mois suivant">${I.right}</button></div><div class="cal-grid">${cells}</div>`;
 }
 function calInit(mode, sel, extra){
   const base = sel ? new Date(parseYmd(sel)) : new Date();
@@ -776,7 +762,7 @@ function toast(msg, actions){
   $('#toast-acts').innerHTML = toastActs.map((a, i) => `<button type="button" data-toast="${i}">${esc(a.label)}</button>`).join('');
   $('#toast').hidden = false;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(hideToast, toastActs.length ? 7000 : 3500);
+  toastTimer = setTimeout(hideToast, toastActs.length ? 6000 : 3000);
 }
 function hideToast(){ $('#toast').hidden = true; toastActs = []; }
 $('#toast-acts').addEventListener('click', async e => {
@@ -788,130 +774,129 @@ async function run(p){
   try { await p; return true; }
   catch (e){
     const code = e && e.code;
-    if (code === 'permission-denied'){ toast('Accès refusé : vérifie le code de la maison et les règles Firebase.'); }
-    else if (code === 'invalid_argument'){ S.readOnly = true; $('#ro').hidden = false; render(); toast('Modification refusée : tu n’as pas le droit de modifier cette page.'); }
-    else if (code === 'quota_exceeded') toast('La base est pleine : supprime quelques éléments.');
+    if (code === 'permission-denied') toast('Accès refusé : vérifie le code de la maison.');
     else toast('Ça n’a pas marché, réessaie dans un instant.');
     return false;
   }
 }
-function canWrite(){ if (!db || S.readOnly){ toast('Modification impossible ici.'); return false; } return true; }
+function canWrite(){ if (!db || S.readOnly){ toast('Modification impossible pour l’instant.'); return false; } return true; }
 
 /* ---------- chores actions ---------- */
 async function markDone(id, opts){
   opts = opts || {};
   const t = S.tasks.find(t => t.id === id); if (!t || !canWrite()) return;
-  const prev = {lastDone: t.lastDone || null, lastBy: t.lastBy || null, history: t.history || [], skipped: !!t.skipped, times: t.times || []};
-  const today = todayYmd();
+  const prev = {lastDone: t.lastDone || null, lastBy: t.lastBy || null, history: t.history || [], skipped: !!t.skipped};
+  const day = opts.day || todayYmd();
   const data = opts.skip
-    ? {lastDone: today, skipped: true}
-    : {lastDone: today, lastBy: S.myId || null, skipped: false, history: [{d: today, by: S.myId || null}, ...prev.history].slice(0, 12)};
-  if (opts.secs) data.times = [{d: today, s: opts.secs}, ...prev.times].slice(0, 6);
-  const ok = await run(db.collection('tasks').doc(id).update(data));
-  if (!ok) return;
+    ? {lastDone: todayYmd(), skipped: true}
+    : {lastDone: day, lastBy: S.myId || null, skipped: false, history: [{d: day, by: S.myId || null}, ...prev.history].slice(0, 12)};
+  if (!(await run(db.collection('tasks').doc(id).update(data)))) return;
   const undo = {label: 'Annuler', fn: () => run(db.collection('tasks').doc(id).update(prev))};
-  if (opts.skip) toast('« ' + t.name + ' » : passée pour cette fois', [undo]);
-  else toast(cheer() + (opts.secs ? ' (' + clock(opts.secs) + ')' : ''), [
-    {label: 'C’était hier', fn: () => setDoneDate(id, shiftDays(today, -1))},
-    {label: 'Autre jour', fn: () => openDoneCalendar(id)},
-    undo
-  ]);
+  if (opts.skip) toast('Passée pour cette fois', [undo]);
+  else if (opts.day) toast('Notée ' + (daysFromToday(day) === -1 ? 'pour hier' : 'au ' + fmtDate(day)), [undo]);
+  else toast(cheer(), [{label: 'C’était hier', fn: () => setDoneDate(id, shiftDays(day, -1))}, undo]);
 }
 async function setDoneDate(id, v){
   const t = S.tasks.find(t => t.id === id); if (!t || !canWrite()) return;
   const h = [...(t.history || [])];
-  if (h[0] && h[0].d === t.lastDone) h[0] = {...h[0], d: v};
-  else h.unshift({d: v, by: S.myId || null});
-  const times = [...(t.times || [])];
-  if (times[0] && times[0].d === t.lastDone) times[0] = {...times[0], d: v};
-  if (await run(db.collection('tasks').doc(id).update({lastDone: v, skipped: false, lastBy: t.lastBy || S.myId || null, history: h.slice(0, 12), times})))
-    toast('« ' + t.name + ' » : faite ' + (daysFromToday(v) === -1 ? 'hier' : 'le ' + fmtDate(v, true)));
-}
-function openDoneCalendar(id){
-  const t = S.tasks.find(t => t.id === id); if (!t || !canWrite()) return;
-  calInit('done', t.lastDone, {taskId: id});
-  openSheet(`<h3>« ${esc(t.name)} » faite le…</h3>
-    <div id="cal-box">${calHTML()}</div>
-    <div class="actions"><button type="button" class="btn grow" data-act="close">Annuler</button></div>`);
+  if (h[0] && h[0].d === t.lastDone) h[0] = {...h[0], d: v}; else h.unshift({d: v, by: S.myId || null});
+  if (await run(db.collection('tasks').doc(id).update({lastDone: v, skipped: false, lastBy: t.lastBy || S.myId || null, history: h.slice(0, 12)})))
+    toast('Notée ' + (daysFromToday(v) === -1 ? 'pour hier' : 'au ' + fmtDate(v)));
 }
 function tapDone(btn, id){
   if (btn.classList.contains('pop')) return;
   celebrate(btn);
-  setTimeout(() => markDone(id), REDUCE ? 0 : 480);
+  setTimeout(() => markDone(id), REDUCE ? 0 : 450);
 }
 
-/* ---------- timer ---------- */
-function timerSecs(){ const t = S.timer; if (!t) return 0; return Math.floor((t.acc + (t.running ? Date.now() - t.since : 0)) / 1000); }
-function startTimer(id){
+/* fiche d'une tâche : tout ce qu'on peut faire, sans encombrer la liste */
+function taskSheet(id){
   const t = S.tasks.find(t => t.id === id); if (!t) return;
-  if (S.timer && S.timer.taskId !== id && !confirmSwitch()) return;
-  if (!S.timer || S.timer.taskId !== id){
-    S.timer = {taskId: id, acc: 0, since: Date.now(), running: true, steps: (t.steps || []).map(name => ({name, at: null}))};
-    saveTimer();
-  }
-  openTimerSheet();
+  const dl = taskDue(t), st = taskStatus(t, dl);
+  openSheet({
+    title: esc(t.name),
+    body: `<div class="info"><span class="pill ${st}">${esc(dueLong(t, dl))}</span><span class="pill none">${esc(roomName(t.roomId))}</span>
+        <span class="txt">${esc(doneLabel(t))} · ${esc(freqLabel(t))}</span></div>
+      ${t.how ? `<div class="how"><b>Notre méthode</b>${esc(t.how)}</div>` : ''}
+      <div class="acts">
+        <button type="button" class="btn primary" data-act="sheet-done" data-id="${esc(t.id)}">${I.check}Faite aujourd'hui</button>
+        <button type="button" class="btn" data-act="sheet-yesterday" data-id="${esc(t.id)}">Faite hier</button>
+        <button type="button" class="btn" data-act="done-other" data-id="${esc(t.id)}">${I.cal}Autre jour</button>
+        ${dl <= 0 && t.lastDone ? `<button type="button" class="btn" data-act="sheet-skip" data-id="${esc(t.id)}" style="grid-column:1 / -1">${t.flex ? 'Pas besoin cette fois' : 'Passer cette fois'}</button>` : ''}
+      </div>`,
+    foot: `<button type="button" class="btn grow" data-act="close">Fermer</button><button type="button" class="btn grow" data-act="edit-task" data-id="${esc(t.id)}">Modifier</button>`
+  });
 }
-let switchArmed = false;
-function confirmSwitch(){
-  if (switchArmed){ switchArmed = false; return true; }
-  switchArmed = true; setTimeout(() => switchArmed = false, 4000);
-  toast('Un chrono tourne déjà. Touche encore « Chrono » pour le remplacer.');
-  return false;
+function openDoneCalendar(id){
+  const t = S.tasks.find(t => t.id === id); if (!t || !canWrite()) return;
+  calInit('done', null, {taskId: id});
+  openSheet({title: 'Faite le…', body: `<div id="cal-box">${calHTML()}</div>`, foot: `<button type="button" class="btn grow" data-act="close">Annuler</button>`});
 }
-function timerSheetHTML(){
-  const tm = S.timer, t = S.tasks.find(x => x.id === tm.taskId);
-  const avg = t ? avgTime(t) : '';
-  return `<h3>${esc(t ? t.name : 'Chrono')}</h3>
-    <div class="clock" id="clock">${clock(timerSecs())}</div>
-    <p class="clock-sub">${tm.running ? 'En cours' : 'En pause'}${avg ? ' · d’habitude ' + esc(avg.replace('≈ ','')) : ''}</p>
-    ${tm.steps.length ? `<div class="steps">${tm.steps.map((s, i) => `<button type="button" class="step ${s.at !== null ? 'done' : ''}" data-act="step" data-v="${i}"><span class="dot">${I.check}</span><span class="name">${esc(s.name)}</span>${s.at !== null ? `<span class="at">${clock(s.at)}</span>` : ''}</button>`).join('')}</div>`
-      : `<p class="hint">Astuce : ajoute des étapes à cette tâche (en la modifiant) pour les cocher pendant le chrono.</p>`}
-    <div class="actions">
-      <button type="button" class="btn" data-act="timer-pause">${tm.running ? 'Pause' : 'Reprendre'}</button>
-      <button type="button" class="btn primary grow" data-act="timer-finish">${I.check.replace('<svg','<svg width="18" height="18"')}Terminé</button>
-    </div>
-    <div class="actions" style="margin-top:8px">
-      <button type="button" class="btn ghost" data-act="close">Réduire</button>
-      <button type="button" class="btn ghost danger" id="timer-cancel">Abandonner</button>
-    </div>`;
+
+function taskEdit(task, presetRoom){
+  if (!canWrite()) return;
+  if (!S.rooms.length){ toast('Crée d’abord une pièce.'); return; }
+  const isNew = !task;
+  const t = task || {name:'', roomId: presetRoom || S.openRoom || (sortedRooms()[0] || {}).id, n: 1, unit: 'w', how: '', flex: false};
+  const f = freqOf(t);
+  openSheet({
+    title: isNew ? 'Nouvelle tâche' : 'Modifier la tâche',
+    body: `<div class="field"><label for="t-name">Tâche</label><input id="t-name" name="name" required maxlength="80" value="${esc(t.name)}" placeholder="Nettoyer l’évier"></div>
+      <div class="field"><label for="t-room">Pièce</label><select id="t-room" name="room">${sortedRooms().map(r => `<option value="${esc(r.id)}" ${r.id === t.roomId ? 'selected' : ''}>${esc(r.name)}</option>`).join('')}</select></div>
+      <div class="field"><span class="lbl">À refaire tous les…</span>
+        <div class="inline"><input name="n" type="number" inputmode="numeric" min="1" max="99" value="${f.n}" aria-label="Nombre">
+        <select name="unit" aria-label="Unité">${Object.entries(UNITS).map(([k,v]) => `<option value="${k}" ${k === f.unit ? 'selected' : ''}>${v[1]}</option>`).join('')}</select></div></div>
+      <details class="more" ${t.flex || t.how ? 'open' : ''}><summary>${I.right}Plus d'options</summary><div class="more-in">
+        <label class="toggle"><input type="checkbox" name="flex" ${t.flex ? 'checked' : ''}><span><b>Souple</b><span>Pas grave si on la saute : elle ne passe jamais en retard.</span></span></label>
+        <div class="field"><label for="t-how">Notre méthode</label><textarea id="t-how" name="how" maxlength="2000" placeholder="Produit, astuces…">${esc(t.how || '')}</textarea></div>
+      </div></details>
+      ${isNew ? '' : `<button type="button" class="btn danger wide" id="t-del">Supprimer la tâche</button>`}`,
+    foot: `<button type="button" class="btn grow" data-act="close">Annuler</button><button type="submit" class="btn primary grow">Enregistrer</button>`,
+    onSubmit: async form => {
+      const name = form.name.value.trim().slice(0,80);
+      if (!name){ form.name.focus(); return; }
+      const n = Math.max(1, Math.min(99, parseInt(form.n.value, 10) || 1));
+      const unit = UNITS[form.unit.value] ? form.unit.value : 'd';
+      const data = {name, roomId: form.room.value, n, unit, every: Math.round(periodDays({n, unit})), flex: form.flex.checked, how: form.how.value.trim().slice(0,2000)};
+      closeSheet();
+      if (isNew){ await run(db.collection('tasks').add({...data, lastDone: todayYmd(), lastBy: null, history: [], createdAt: Date.now()})); S.openRoom = data.roomId; store.set('chavan-open', S.openRoom); render(); toast('Tâche ajoutée'); }
+      else await run(db.collection('tasks').doc(task.id).update(data));
+    }
+  });
+  if (isNew) setTimeout(() => $('#t-name') && $('#t-name').focus(), 60);
+  const del = $('#t-del');
+  if (del) del.addEventListener('click', () => armDelete(del, async () => { closeSheet(); await run(db.collection('tasks').doc(task.id).delete()); toast('Tâche supprimée'); }));
 }
-function openTimerSheet(){
-  if (!S.timer) return;
-  openSheet(timerSheetHTML());
-  $('#sheet').dataset.timer = '1';
-  renderTimerBar();
-  const c = $('#timer-cancel');
-  c.addEventListener('click', () => armDelete(c, () => { S.timer = null; saveTimer(); closeSheet(); render(); }));
-}
-function refreshTimerSheet(){ if ($('#sheet').dataset.timer === '1' && S.timer) openTimerSheet(); }
-function renderTimerBar(){
-  const bar = $('#timer-bar');
-  const sheetOpen = $('#sheet').dataset.timer === '1' && !$('#scrim').hidden;
-  if (!S.timer || sheetOpen){ bar.hidden = true; return; }
-  const t = S.tasks.find(x => x.id === S.timer.taskId);
-  bar.hidden = false;
-  bar.innerHTML = `${I.timer.replace('<svg','<svg width="18" height="18"')}<span>${esc(t ? t.name : 'Chrono')}</span><b id="bar-clock">${clock(timerSecs())}</b>`;
-}
-setInterval(() => {
-  if (!S.timer) return;
-  const s = clock(timerSecs());
-  const c = $('#clock'); if (c) c.textContent = s;
-  const b = $('#bar-clock'); if (b) b.textContent = s;
-}, 500);
-async function finishTimer(){
-  const tm = S.timer; if (!tm) return;
-  const secs = Math.max(1, timerSecs());
-  S.timer = null; saveTimer(); closeSheet(); render();
-  celebrate(null);
-  await markDone(tm.taskId, {secs});
+
+function roomEdit(room){
+  if (!canWrite()) return;
+  const isNew = !room;
+  openSheet({
+    title: isNew ? 'Nouvelle pièce' : 'Modifier la pièce',
+    body: `<div class="field"><label for="r-name">Nom</label><input id="r-name" name="name" required maxlength="40" value="${esc(room ? room.name : '')}" placeholder="Bureau, balcon…"></div>
+      ${isNew ? '' : `<p class="hint" style="margin-bottom:12px">Supprimer la pièce supprime aussi ses ${S.tasks.filter(t => t.roomId === room.id).length} tâches.</p><button type="button" class="btn danger wide" id="r-del">Supprimer la pièce</button>`}`,
+    foot: `<button type="button" class="btn grow" data-act="close">Annuler</button><button type="submit" class="btn primary grow">Enregistrer</button>`,
+    onSubmit: async form => {
+      const name = form.name.value.trim().slice(0,40); if (!name) return;
+      closeSheet();
+      if (isNew){ const ref = db.collection('rooms').doc(); if (await run(ref.set({name, createdAt: Date.now()}))){ S.openRoom = ref.id; store.set('chavan-open', S.openRoom); render(); } }
+      else await run(db.collection('rooms').doc(room.id).update({name}));
+    }
+  });
+  if (isNew) setTimeout(() => $('#r-name') && $('#r-name').focus(), 60);
+  const del = $('#r-del');
+  if (del) del.addEventListener('click', () => armDelete(del, async () => {
+    closeSheet();
+    for (const t of S.tasks.filter(t => t.roomId === room.id)) await run(db.collection('tasks').doc(t.id).delete());
+    await run(db.collection('rooms').doc(room.id).delete());
+    S.openRoom = null; render(); toast('Pièce supprimée');
+  }));
 }
 
 /* ---------- food actions ---------- */
 async function addFood(names, exp){
   if (!canWrite()) return;
-  const place = S.place, tup = S.tup;
-  const putOn = shiftDays(todayYmd(), tup ? -S.tupDay : 0);
-  const added = [];
+  const place = S.place, tup = S.tup, putOn = shiftDays(todayYmd(), tup ? -S.tupDay : 0), added = [];
   for (const name of names){
     const ref = db.collection('food').doc();
     const data = {name, place, exp, putOn, addedAt: Date.now(), addedBy: S.myId || null};
@@ -919,11 +904,10 @@ async function addFood(names, exp){
     if (await run(ref.set(data))) added.push(ref);
   }
   if (!added.length) return;
-  const when = exp ? 'jusqu’au ' + fmtDate(exp) : 'sans date';
-  toast((added.length > 1 ? added.length + ' trucs' : '« ' + names[0] + ' »') + ' → ' + PLACES[place] + ', ' + when,
+  toast((added.length > 1 ? added.length + ' trucs rangés' : 'Rangé') + ' · ' + (exp ? fmtDate(exp) : 'sans date'),
     [{label: 'Annuler', fn: async () => { for (const r of added) await run(r.delete()); }}]);
 }
-const HINT = 'Astuce : sépare par des virgules pour ranger plusieurs choses avec la même date.';
+const HINT = 'Plusieurs choses avec la même date ? Sépare-les par des virgules.';
 function flashHint(msg){
   const h = $('#add-hint'); h.textContent = msg; h.classList.add('flash');
   setTimeout(() => { h.classList.remove('flash'); h.textContent = HINT; }, 2600);
@@ -933,28 +917,14 @@ function needNames(){
   if (!names.length){ flashHint('Écris d’abord ce que tu ranges.'); $('#food-name').focus(); return null; }
   return names;
 }
-async function commitAdd(names, exp){
-  $('#food-name').value = '';
-  $('#food-name').focus();
-  await addFood(names, exp);
-}
-async function quickAdd(btn){
-  const names = needNames(); if (!names) return;
-  const base = S.tup ? shiftDays(todayYmd(), -S.tupDay) : todayYmd();
-  let exp = null;
-  if (btn.dataset.d) exp = shiftDays(base, Number(btn.dataset.d));
-  else if (btn.dataset.m) exp = shiftMonths(base, Number(btn.dataset.m));
-  await commitAdd(names, exp);
-}
+async function commitAdd(names, exp){ $('#food-name').value = ''; await addFood(names, exp); }
 function openAddCalendar(){
   const names = needNames(); if (!names) return;
   calInit('add', null);
-  openSheet(`<h3>Ranger « ${esc(names.join(', '))} » jusqu'au…</h3>
-    <div id="cal-box">${calHTML()}</div>
-    <p class="hint" style="margin-top:12px">Touche le jour écrit sur l'emballage.</p>
-    <div class="actions"><button type="button" class="btn grow" data-act="close">Annuler</button></div>`);
+  openSheet({title: esc(names.join(', ')) + ' : jusqu’au…', body: `<div id="cal-box">${calHTML()}</div><p class="hint" style="margin-top:12px">Touche le jour écrit sur l'emballage.</p>`,
+    foot: `<button type="button" class="btn grow" data-act="close">Annuler</button><button type="button" class="btn grow" data-act="add-nodate">Sans date</button>`});
 }
-$('#add-food').addEventListener('submit', e => { e.preventDefault(); if (splitNames($('#food-name').value).length) openAddCalendar(); else needNames(); });
+$('#add-food').addEventListener('submit', e => { e.preventDefault(); if (needNames()) openAddCalendar(); });
 
 async function eat(id, btn){
   const f = S.food.find(f => f.id === id); if (!f || !canWrite()) return;
@@ -964,7 +934,35 @@ async function eat(id, btn){
   if (!(await run(db.collection('food').doc(id).delete()))) return;
   const acts = [{label: 'Annuler', fn: () => run(db.collection('food').doc(id).set(data))}];
   if (f.kind !== 'tup') acts.unshift({label: '+ Courses', fn: () => addShop([f.name], true)});
-  toast('« ' + f.name + ' » retiré', acts);
+  toast('Retiré', acts);
+}
+function foodSheet(f){
+  if (!canWrite()) return;
+  calInit('edit', f.exp || null);
+  const d = foodDays(f);
+  openSheet({
+    title: esc(f.name),
+    body: `<div class="info"><span class="pill ${foodStatus(d)}">${esc(foodLong(d, f.exp))}</span>${f.kind === 'tup' && f.putOn ? `<span class="pill tup">${esc(putLabel(f))}</span>` : ''}</div>
+      <div class="field"><label for="f-name">Quoi</label><input id="f-name" name="name" maxlength="80" value="${esc(f.name)}"></div>
+      <div class="field"><label for="f-place">Où</label><select id="f-place" name="place">${Object.entries(PLACES).map(([k,v]) => `<option value="${k}" ${k === f.place ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
+      <details class="more"><summary>${I.right}Changer la date (<span id="f-exp-label">${f.exp ? esc(fmtDate(f.exp)) : 'sans date'}</span>)</summary><div class="more-in">
+        <div id="cal-box">${calHTML()}</div>
+        <button type="button" class="link" data-act="cal-clear">Pas de date</button>
+      </div></details>
+      <details class="more"><summary>${I.right}Tupperware / reste</summary><div class="more-in">
+        <label class="toggle"><input type="checkbox" name="tup" ${f.kind === 'tup' ? 'checked' : ''}><span><b>C'est un reste</b><span>Affiche depuis combien de temps il est au frigo.</span></span></label>
+        <div class="field"><label for="f-put">Mis au frigo le</label><input id="f-put" name="put" type="date" value="${esc(f.putOn || '')}"></div>
+      </div></details>
+      <button type="button" class="btn danger wide" id="f-del">Fini (mangé ou jeté)</button>`,
+    foot: `<button type="button" class="btn grow" data-act="close">Annuler</button><button type="submit" class="btn primary grow">Enregistrer</button>`,
+    onSubmit: async form => {
+      const name = form.name.value.trim().slice(0,80); if (!name) return;
+      const data = {name, place: form.place.value, exp: S.cal ? S.cal.sel : (f.exp || null), putOn: form.put.value || null, kind: form.tup.checked ? 'tup' : null};
+      closeSheet();
+      await run(db.collection('food').doc(f.id).update(data));
+    }
+  });
+  $('#f-del').addEventListener('click', () => { closeSheet(); eat(f.id); });
 }
 
 /* ---------- shop actions ---------- */
@@ -980,7 +978,7 @@ async function addShop(names, fromFridge){
 $('#add-shop').addEventListener('submit', async e => {
   e.preventDefault();
   const names = splitNames($('#shop-name').value); if (!names.length) return;
-  $('#shop-name').value = ''; $('#shop-name').focus();
+  $('#shop-name').value = '';
   await addShop(names);
 });
 async function toggleShop(id, btn){
@@ -996,207 +994,51 @@ async function clearShop(){
 }
 function shopSheet(x){
   if (!canWrite()) return;
-  openSheet(`<form>
-    <h3>Modifier</h3>
-    <div class="field"><label for="s-name">Article</label><input id="s-name" name="name" required maxlength="80" value="${esc(x.name)}"></div>
-    <div class="actions">
-      <button type="button" class="btn danger" id="s-del">Supprimer</button>
-      <button type="button" class="btn grow" data-act="close">Annuler</button>
-      <button type="submit" class="btn primary grow">Enregistrer</button>
-    </div>
-  </form>`, async form => {
-    const name = form.name.value.trim().slice(0,80); if (!name) return;
-    closeSheet(); await run(db.collection('shop').doc(x.id).update({name}));
+  openSheet({
+    title: 'Modifier',
+    body: `<div class="field"><label for="s-name">Article</label><input id="s-name" name="name" maxlength="80" value="${esc(x.name)}"></div><button type="button" class="btn danger wide" id="s-del">Supprimer</button>`,
+    foot: `<button type="button" class="btn grow" data-act="close">Annuler</button><button type="submit" class="btn primary grow">Enregistrer</button>`,
+    onSubmit: async form => { const name = form.name.value.trim().slice(0,80); if (!name) return; closeSheet(); await run(db.collection('shop').doc(x.id).update({name})); }
   });
   $('#s-del').addEventListener('click', async () => { closeSheet(); await run(db.collection('shop').doc(x.id).delete()); });
-}
-
-/* ---------- sheets ---------- */
-function openSheet(html, onSubmit){
-  const sh = $('#sheet');
-  sh.dataset.timer = '';
-  sh.innerHTML = html;
-  $('#scrim').hidden = false;
-  const form = sh.querySelector('form');
-  if (form && onSubmit) form.addEventListener('submit', async e => { e.preventDefault(); await onSubmit(form); });
-  renderTimerBar();
-}
-function closeSheet(){ $('#scrim').hidden = true; $('#sheet').innerHTML = ''; $('#sheet').dataset.timer = ''; S.cal = null; renderTimerBar(); }
-$('#scrim').addEventListener('click', e => { if (e.target.id === 'scrim') closeSheet(); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#scrim').hidden) closeSheet(); });
-function armDelete(btn, fn){
-  if (btn.classList.contains('armed')) { fn(); return; }
-  btn.classList.add('armed'); btn.dataset.label = btn.textContent; btn.textContent = 'Sûr ? Touche encore';
-  setTimeout(() => { if (btn.isConnected){ btn.classList.remove('armed'); btn.textContent = btn.dataset.label; } }, 3000);
-}
-
-const FREQS = [[1,'d','1 jour'],[3,'d','3 jours'],[1,'w','1 semaine'],[2,'w','2 semaines'],[1,'m','1 mois'],[3,'m','3 mois'],[6,'m','6 mois'],[1,'y','1 an']];
-function taskSheet(task, presetRoom, focusHow){
-  if (!canWrite()) return;
-  if (!S.rooms.length){ toast('Crée d’abord une pièce.'); return; }
-  const isNew = !task;
-  const t = task || {name:'', roomId: presetRoom || S.roomId || (sortedRooms()[0] || {}).id, n: 1, unit: 'w', how: '', flex: false, steps: []};
-  const f = freqOf(t);
-  const avg = isNew ? '' : avgTime(t);
-  openSheet(`<form>
-    <h3>${isNew ? 'Nouvelle tâche' : esc(t.name)}</h3>
-    ${isNew ? '' : `<p class="hint" style="margin:-8px 0 14px">${esc(doneLabel(t) || 'jamais faite')}${avg ? ' · ' + esc(avg) : ''} · <button type="button" class="link" data-act="done-other" data-id="${esc(t.id)}">Faite un autre jour…</button></p>`}
-    <div class="field"><label for="t-name">Tâche</label><input id="t-name" name="name" required maxlength="80" value="${esc(t.name)}" placeholder="Nettoyer l’évier"></div>
-    <div class="field"><label for="t-room">Pièce</label><select id="t-room" name="room">${sortedRooms().map(r => `<option value="${esc(r.id)}" ${r.id === t.roomId ? 'selected' : ''}>${esc(r.name)}</option>`).join('')}</select></div>
-    <div class="field"><span class="lbl">À refaire tous les…</span>
-      <div class="inline"><input id="t-n" name="n" type="number" min="1" max="99" required value="${f.n}" aria-label="Nombre">
-        <select id="t-unit" name="unit" aria-label="Unité">${Object.entries(UNITS).map(([k,v]) => `<option value="${k}" ${k === f.unit ? 'selected' : ''}>${v[1]}</option>`).join('')}</select></div>
-      <div class="chips" style="margin-top:6px">${FREQS.map(([n,u,l]) => `<button type="button" class="chip" data-act="freq" data-n="${n}" data-u="${u}">${l}</button>`).join('')}</div>
-    </div>
-    <div class="field"><label class="toggle"><input type="checkbox" name="flex" ${t.flex ? 'checked' : ''}><span><b>Souple</b><span>Pas grave si on la saute (ex. nettoyer l'aspirateur s'il n'a pas servi). Elle ne passe jamais « en retard » : elle se range dans « Si besoin ».</span></span></label></div>
-    <div class="field"><label for="t-steps">Étapes du chrono (une par ligne)</label><textarea id="t-steps" name="steps" maxlength="1500" style="min-height:90px" placeholder="Enlever les draps&#10;Lancer la machine&#10;Mettre les draps propres">${esc((t.steps || []).join('\n'))}</textarea><span class="help">Facultatif. Tu les coches au fur et à mesure pendant le chrono.</span></div>
-    <div class="field"><label for="t-how">Notre méthode</label><textarea id="t-how" name="how" maxlength="2000" placeholder="Ce qu'on utilise, dans quel ordre, les petites astuces…">${esc(t.how || '')}</textarea><span class="help">Facultatif. Visible par vous deux sous la tâche.</span></div>
-    <div class="actions">
-      ${isNew ? '' : `<button type="button" class="btn danger" id="t-del">Supprimer</button>`}
-      <button type="button" class="btn grow" data-act="close">Annuler</button>
-      <button type="submit" class="btn primary grow">Enregistrer</button>
-    </div>
-  </form>`, async form => {
-    const n = Math.max(1, Math.min(99, parseInt(form.n.value, 10) || 1));
-    const unit = UNITS[form.unit.value] ? form.unit.value : 'd';
-    const steps = form.steps.value.split('\n').map(s => s.trim()).filter(Boolean).slice(0, 20).map(s => s.slice(0, 80));
-    const data = {name: form.name.value.trim().slice(0,80), roomId: form.room.value, n, unit, every: Math.round(periodDays({n, unit})), flex: form.flex.checked, how: form.how.value.trim().slice(0,2000), steps};
-    if (!data.name) return;
-    closeSheet();
-    if (isNew) await run(db.collection('tasks').add({...data, lastDone: todayYmd(), lastBy: null, history: [], times: [], createdAt: Date.now()}));
-    else { await run(db.collection('tasks').doc(task.id).update(data)); if (data.how) { S.openHow.add(task.id); render(); } }
-  });
-  const target = focusHow ? $('#t-how') : (isNew ? $('#t-name') : null);
-  if (target) setTimeout(() => target.focus(), 50);
-  const del = $('#t-del');
-  if (del) del.addEventListener('click', () => armDelete(del, async () => { closeSheet(); await run(db.collection('tasks').doc(task.id).delete()); toast('Tâche supprimée'); }));
-}
-
-function roomSheet(room){
-  if (!canWrite()) return;
-  const isNew = !room;
-  openSheet(`<form>
-    <h3>${isNew ? 'Nouvelle pièce' : 'Modifier la pièce'}</h3>
-    <div class="field"><label for="r-name">Nom</label><input id="r-name" name="name" required maxlength="40" value="${esc(room ? room.name : '')}" placeholder="Bureau, balcon, buanderie…"></div>
-    ${isNew ? '' : `<p class="hint">Supprimer la pièce supprime aussi ses ${S.tasks.filter(t => t.roomId === room.id).length} tâches.</p>`}
-    <div class="actions">
-      ${isNew ? '' : `<button type="button" class="btn danger" id="r-del">Supprimer</button>`}
-      <button type="button" class="btn grow" data-act="close">Annuler</button>
-      <button type="submit" class="btn primary grow">Enregistrer</button>
-    </div>
-  </form>`, async form => {
-    const name = form.name.value.trim().slice(0,40); if (!name) return;
-    closeSheet();
-    if (isNew){
-      const ref = db.collection('rooms').doc();
-      if (await run(ref.set({name, createdAt: Date.now()}))){ S.mview = 'rooms'; S.roomId = ref.id; render(); }
-    } else await run(db.collection('rooms').doc(room.id).update({name}));
-  });
-  if (isNew) setTimeout(() => $('#r-name') && $('#r-name').focus(), 50);
-  const del = $('#r-del');
-  if (del) del.addEventListener('click', () => armDelete(del, async () => {
-    closeSheet();
-    for (const t of S.tasks.filter(t => t.roomId === room.id)) await run(db.collection('tasks').doc(t.id).delete());
-    await run(db.collection('rooms').doc(room.id).delete());
-    S.roomId = null; render(); toast('Pièce supprimée');
-  }));
-}
-
-function foodSheet(f){
-  if (!canWrite()) return;
-  calInit('edit', f.exp || null);
-  openSheet(`<form>
-    <h3>${esc(f.name)}</h3>
-    <div class="field"><label for="f-name">Quoi</label><input id="f-name" name="name" required maxlength="80" value="${esc(f.name)}"></div>
-    <div class="field"><label for="f-place">Où</label><select id="f-place" name="place">${Object.entries(PLACES).map(([k,v]) => `<option value="${k}" ${k === f.place ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
-    <div class="field"><label class="toggle"><input type="checkbox" name="tup" ${f.kind === 'tup' ? 'checked' : ''}><span><b>Tupperware / reste</b><span>Affiche depuis combien de temps il est au frigo.</span></span></label></div>
-    <div class="field"><label for="f-put">Mis au frigo le</label><input id="f-put" name="put" type="date" value="${esc(f.putOn || '')}"></div>
-    <div class="field"><span class="lbl">Date de péremption : <span id="f-exp-label">${f.exp ? esc(fmtDate(f.exp, true)) : 'pas de date'}</span></span>
-      <div id="cal-box">${calHTML()}</div>
-      <button type="button" class="link muted" data-act="cal-clear">Pas de date</button>
-    </div>
-    <div class="actions">
-      <button type="button" class="btn danger" id="f-del">Fini (mangé ou jeté)</button>
-      <button type="button" class="btn grow" data-act="close">Annuler</button>
-      <button type="submit" class="btn primary grow">Enregistrer</button>
-    </div>
-  </form>`, async form => {
-    const name = form.name.value.trim().slice(0,80); if (!name) return;
-    const exp = S.cal ? S.cal.sel : f.exp;
-    const data = {name, place: form.place.value, exp: exp || null, putOn: form.put.value || null, kind: form.tup.checked ? 'tup' : null};
-    closeSheet();
-    await run(db.collection('food').doc(f.id).update(data));
-  });
-  $('#f-del').addEventListener('click', () => { closeSheet(); eat(f.id); });
-}
-
-/* ---------- starter house ---------- */
-const STARTER = [
-  ['Cuisine', [['Vaisselle / vider le lave-vaisselle',1,'d'],['Nettoyer le plan de travail',2,'d'],['Sortir les poubelles',3,'d'],['Nettoyer l’évier',1,'w'],['Laver le sol',1,'w']]],
-  ['Salle de bain', [['Lavabo et miroir',1,'w'],['Douche / baignoire',1,'w'],['Changer les serviettes',1,'w'],['Laver le sol',1,'w']]],
-  ['Salon', [['Ranger',2,'d'],['Aspirer',1,'w'],['Dépoussiérer les meubles',2,'w'],['Nettoyer l’aspirateur',1,'w',true]]],
-  ['Chambre', [['Aspirer',1,'w'],['Changer les draps',2,'w']]]
-];
-let seeding = false;
-async function seed(){
-  if (seeding || !canWrite()) return;
-  seeding = true; toast('Création de la maison…');
-  const today = todayYmd(); let i = 0;
-  for (const [rname, tasks] of STARTER){
-    const ref = db.collection('rooms').doc();
-    if (!(await run(ref.set({name: rname, createdAt: Date.now() + i++})))) { seeding = false; return; }
-    for (const [name, n, unit, flex] of tasks)
-      await run(db.collection('tasks').add({name, roomId: ref.id, n, unit, every: Math.round(periodDays({n, unit})), flex: !!flex, how: '', steps: [], lastDone: today, lastBy: null, history: [], times: [], createdAt: Date.now()}));
-  }
-  seeding = false; S.mview = 'rooms'; render(); toast('C’est prêt !');
 }
 
 /* ---------- events ---------- */
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-act]'); if (!b) return;
   const a = b.dataset.act, id = b.dataset.id;
-  if (a === 'tab'){ S.tab = b.dataset.v; try { history.replaceState(null, '', '#' + S.tab); } catch(_){} render(); window.scrollTo(0,0); }
-  else if (a === 'mview'){ S.mview = b.dataset.v; S.roomId = null; render(); }
-  else if (a === 'room'){ S.roomId = id || null; render(); window.scrollTo(0,0); }
-  else if (a === 'goroom'){ S.tab = 'menage'; S.mview = 'rooms'; S.roomId = id; render(); window.scrollTo(0,0); }
+  if (a === 'tab'){ S.tab = b.dataset.v; try { history.replaceState(null, '', location.pathname + location.search + '#' + S.tab); } catch(_){} render(); window.scrollTo(0,0); }
+  else if (a === 'mview'){ S.mview = b.dataset.v; store.set('chavan-mview', S.mview); render(); }
+  else if (a === 'room'){ S.openRoom = S.openRoom === id ? null : id; store.set('chavan-open', S.openRoom); render();
+    if (S.openRoom){ requestAnimationFrame(() => { const r = document.querySelector(`[data-act="room"][data-id="${CSS.escape(id)}"]`); if (r) r.scrollIntoView({block:'nearest', behavior: REDUCE ? 'auto' : 'smooth'}); }); } }
+  else if (a === 'pin'){ S.pin = id; store.set('chavan-pin', id); if (S.openRoom === id){ S.openRoom = null; store.set('chavan-open', null); } render(); window.scrollTo({top: 0, behavior: REDUCE ? 'auto' : 'smooth'}); toast('Épinglée en haut. Bon courage !'); }
+  else if (a === 'unpin'){ const was = S.pin; S.pin = null; store.set('chavan-pin', null); S.openRoom = null; store.set('chavan-open', null); render(); const r = S.rooms.find(x => x.id === was); if (r && !roomTasks(r.id).some(x => x.dl <= 0 && !x.t.flex)) { celebrate(null); toast(r.name + ' : tout est propre !'); } }
+  else if (a === 'tip-close'){ S.swipeTip = false; store.set('chavan-swipe-tip', false); render(); }
   else if (a === 'done') tapDone(b, id);
-  else if (a === 'skip') markDone(id, {skip: true});
+  else if (a === 'task') taskSheet(id);
+  else if (a === 'sheet-done'){ closeSheet(); celebrate(null); markDone(id); }
+  else if (a === 'sheet-yesterday'){ closeSheet(); markDone(id, {day: shiftDays(todayYmd(), -1)}); }
+  else if (a === 'sheet-skip'){ closeSheet(); markDone(id, {skip: true}); }
   else if (a === 'done-other') openDoneCalendar(id);
-  else if (a === 'how'){ S.openHow.has(id) ? S.openHow.delete(id) : S.openHow.add(id); render(); }
-  else if (a === 'edit-how') taskSheet(S.tasks.find(t => t.id === id), null, true);
-  else if (a === 'edit-task') taskSheet(S.tasks.find(t => t.id === id));
-  else if (a === 'new-task') taskSheet(null, b.dataset.room);
-  else if (a === 'new-room') roomSheet(null);
-  else if (a === 'edit-room') roomSheet(S.rooms.find(r => r.id === id));
-  else if (a === 'seed') seed();
-  else if (a === 'freq'){ $('#t-n').value = b.dataset.n; $('#t-unit').value = b.dataset.u; }
+  else if (a === 'edit-task') taskEdit(S.tasks.find(t => t.id === id));
+  else if (a === 'new-task') taskEdit(null, b.dataset.room);
+  else if (a === 'new-room') roomEdit(null);
+  else if (a === 'edit-room') roomEdit(S.rooms.find(r => r.id === id));
   else if (a === 'close') closeSheet();
-  else if (a === 'timer-start') startTimer(id);
-  else if (a === 'timer-open') openTimerSheet();
-  else if (a === 'timer-pause' && S.timer){
-    const t = S.timer;
-    if (t.running){ t.acc += Date.now() - t.since; t.running = false; } else { t.since = Date.now(); t.running = true; }
-    saveTimer(); refreshTimerSheet();
-  }
-  else if (a === 'timer-finish') finishTimer();
-  else if (a === 'step' && S.timer){
-    const s = S.timer.steps[Number(b.dataset.v)];
-    if (s){ s.at = s.at === null ? timerSecs() : null; saveTimer(); if (s.at !== null){ try { navigator.vibrate && navigator.vibrate(10); } catch(_){} } refreshTimerSheet(); }
-    if (S.timer.steps.length && S.timer.steps.every(x => x.at !== null)) toast('Toutes les étapes sont faites ! Touche « Terminé ».');
-  }
   else if (a === 'place'){ S.place = b.dataset.v; render(); }
   else if (a === 'tup'){ S.tup = !S.tup; S.tupDay = 0; render(); }
   else if (a === 'tupday'){ S.tupDay = Number(b.dataset.v) || 0; render(); }
-  else if (a === 'quick') quickAdd(b);
+  else if (a === 'quick-tomorrow'){ const names = needNames(); if (names) commitAdd(names, shiftDays(todayYmd(), 1)); }
   else if (a === 'open-cal') openAddCalendar();
+  else if (a === 'add-nodate'){ const names = splitNames($('#food-name').value); closeSheet(); if (names.length) commitAdd(names, null); }
   else if (a === 'cal-move' && S.cal){ const d = new Date(S.cal.y, S.cal.m + Number(b.dataset.v), 1); S.cal.y = d.getFullYear(); S.cal.m = d.getMonth(); calRefresh(); }
   else if (a === 'cal-day' && S.cal){
     const v = b.dataset.v;
     if (S.cal.mode === 'add'){ const names = splitNames($('#food-name').value); closeSheet(); if (names.length) commitAdd(names, v); }
     else if (S.cal.mode === 'done'){ const tid = S.cal.taskId; closeSheet(); setDoneDate(tid, v); }
-    else { S.cal.sel = v; $('#f-exp-label').textContent = fmtDate(v, true); calRefresh(); }
+    else { S.cal.sel = v; $('#f-exp-label').textContent = fmtDate(v); calRefresh(); }
   }
-  else if (a === 'cal-clear' && S.cal){ S.cal.sel = null; $('#f-exp-label').textContent = 'pas de date'; calRefresh(); }
+  else if (a === 'cal-clear' && S.cal){ S.cal.sel = null; $('#f-exp-label').textContent = 'sans date'; calRefresh(); }
   else if (a === 'filter'){ S.filter = b.dataset.v; render(); }
   else if (a === 'eat') eat(id, b);
   else if (a === 'edit-food'){ const f = S.food.find(f => f.id === id); if (f) foodSheet(f); }
@@ -1207,6 +1049,48 @@ document.addEventListener('click', e => {
 function fromHash(){ const h = location.hash.slice(1); if (['frigo','menage','courses'].includes(h)) S.tab = h; }
 window.addEventListener('hashchange', () => { fromHash(); render(); });
 fromHash();
+
+/* ---------- glisser pour cocher ---------- */
+let sw = null, swallowClick = false;
+const SWIPE_MIN = 90;
+document.addEventListener('pointerdown', e => {
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  const row = e.target.closest('.row[data-swipe]');
+  if (!row || e.target.closest('.check')) return;
+  sw = {row, x: e.clientX, y: e.clientY, dx: 0, active: false, pid: e.pointerId};
+});
+document.addEventListener('pointermove', e => {
+  if (!sw || e.pointerId !== sw.pid) return;
+  const dx = e.clientX - sw.x, dy = e.clientY - sw.y;
+  if (!sw.active){
+    if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)){ sw = null; return; }
+    if (dx > 12 && dx > Math.abs(dy) * 1.4){ sw.active = true; sw.row.classList.add('swiping'); try { sw.row.setPointerCapture(sw.pid); } catch(_){} }
+    else return;
+  }
+  sw.dx = Math.max(0, dx);
+  sw.row.style.transform = `translateX(${Math.min(sw.dx, 150)}px)`;
+  const ok = sw.dx > SWIPE_MIN;
+  if (ok && !sw.row.classList.contains('swipe-ok')){ try { navigator.vibrate && navigator.vibrate(8); } catch(_){} }
+  sw.row.classList.toggle('swipe-ok', ok);
+});
+function endSwipe(e, cancelled){
+  if (!sw || (e && e.pointerId !== sw.pid)) return;
+  const {row, dx, active} = sw; sw = null;
+  if (!active) return;
+  swallowClick = true; setTimeout(() => swallowClick = false, 350);
+  row.classList.remove('swiping');
+  row.style.transform = '';
+  if (cancelled || dx <= SWIPE_MIN){ row.classList.remove('swipe-ok'); return; }
+  const btn = row.querySelector('.check'); if (!btn) return;
+  if (S.swipeTip){ S.swipeTip = false; store.set('chavan-swipe-tip', false); }
+  const id = btn.dataset.id, act = btn.dataset.act;
+  if (act === 'done') tapDone(btn, id);
+  else if (act === 'eat') eat(id, btn);
+  else if (act === 'shop-toggle') toggleShop(id, btn);
+}
+document.addEventListener('pointerup', e => endSwipe(e, false));
+document.addEventListener('pointercancel', e => endSwipe(e, true));
+document.addEventListener('click', e => { if (swallowClick){ e.stopPropagation(); e.preventDefault(); swallowClick = false; } }, true);
 
 /* ---------- Firebase : colle ta config ici ---------- */
 const FIREBASE_CONFIG = {
@@ -1322,20 +1206,18 @@ async function setupJoin(btn){
 }
 
 function settingsSheet(){
-  openSheet(`<form>
-    <h3>Réglages</h3>
-    <div class="field"><label for="set-name">Ton prénom</label><input id="set-name" name="name" maxlength="20" required value="${esc(LS.get('chavan-name') || '')}"></div>
-    <div class="field"><span class="lbl">Code de la maison</span><div class="codebox">${esc(HOUSE || '')}</div>
-      <div class="chips"><button type="button" class="chip" data-act="share-invite">Envoyer l'invitation</button><button type="button" class="chip" data-act="copy-invite">Copier le lien</button></div>
-      <span class="help">Garde ce code pour vous deux : il donne accès à vos listes.</span></div>
-    <div class="actions">
-      <button type="button" class="btn danger" id="leave">Quitter sur ce téléphone</button>
-      <button type="button" class="btn grow" data-act="close">Fermer</button>
-      <button type="submit" class="btn primary grow">Enregistrer</button>
-    </div>
-  </form>`, form => {
-    const n = form.name.value.trim().slice(0, 20); if (!n) return;
-    LS.set('chavan-name', n); S.myId = n; closeSheet(); render(); toast('C’est noté, ' + n + ' !');
+  openSheet({
+    title: 'Réglages',
+    body: `<div class="field"><label for="set-name">Ton prénom</label><input id="set-name" name="name" maxlength="20" value="${esc(LS.get('chavan-name') || '')}"></div>
+      <div class="field"><span class="lbl">Code de la maison</span><div class="codebox">${esc(HOUSE || '')}</div>
+        <div class="add-row"><button type="button" class="chip" data-act="share-invite">Envoyer l'invitation</button><button type="button" class="chip" data-act="copy-invite">Copier le lien</button></div>
+        <span class="help">Garde ce code pour vous deux : il donne accès à vos listes.</span></div>
+      <button type="button" class="btn danger wide" id="leave">Quitter la maison sur ce téléphone</button>`,
+    foot: `<button type="button" class="btn grow" data-act="close">Fermer</button><button type="submit" class="btn primary grow">Enregistrer</button>`,
+    onSubmit: form => {
+      const n = form.name.value.trim().slice(0, 20); if (!n) return;
+      LS.set('chavan-name', n); S.myId = n; closeSheet(); render(); toast('C’est noté, ' + n + ' !');
+    }
   });
   const l = $('#leave');
   l.addEventListener('click', () => armDelete(l, () => { LS.set('chavan-code', null); setUrlCode(null); location.reload(); }));
